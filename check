@@ -1,0 +1,19 @@
+Is it possible for us to have someothing other than .orig at the beginning of a file
+Do we have to check for .end of our assembly file
+Shift values are always positive (never negative) if they aren't - error code 3. Same for Trap
+Make sure labels arent present more than once in the symbol table during pass 1, if it is error code 4. 
+label that starts with the letter ‘x’ or a number) is another example of error code 4.
+isalnum()
+First pass look for .orig, .end, and labels, and exit based on that.
+
+
+To determine between invalid opcode and label, we need to look at the arguments that come later, if there is a register or something,
+then there is clearly a problem.
+
+cant find a label on .end or .orig
+
+registers
+immediates
+immediate - signed PCoffset9
+immediate - signed PCoffset11
+immediate - unsigned amount4
