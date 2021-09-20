@@ -1,3 +1,4 @@
-.ORIG x1000
-	ADD R1, R0, 1	; 1 is an invalid operand (neither a register nor an immediate)
+.ORIG x3000
+A ADD R1, R1, R1
+  ADD R1, R1, R1
 	.END

@@ -82,7 +82,7 @@ os.system("../assemble input/"+test+"-py.asm output/"+test+"-c.obj")
 
 file2 = open("output/"+test+"-py.obj", "w")
 file2.write("0x3000\n")
-file2.write("0x01FE\n")
+file2.write("0x0FFE\n")
 file2.close()
 
 output1 = open("output/"+test+"-c.obj", "r")

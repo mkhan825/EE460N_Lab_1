@@ -1,6 +1,6 @@
-; Name 1: Zhecheng Wang
+; Name 1: Rithvik Dyava
 ; Name 2: Masaad Khan
-; UTEID 1: zw5668
+; UTEID 1: rd29228
 ; UTEID 2: mak4668
 
         .ORIG x3000

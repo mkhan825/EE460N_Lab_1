@@ -69,24 +69,56 @@ readAndParse(FILE* pInfile, char* pLine, char** pLabel,
   }
     
   *pArg1 = lPtr;
+  if (isOpcode(*pArg1)) {
+    #if (DEBUG)
+    printf("'%s' cannot be an argument!\n", *pArg1);
+    printf("Exit code: 4\n");
+    #endif
+
+    exit(4);
+  }
     
   if(!(lPtr = strtok(NULL, "\t\n ,"))) {
     return( OK );
   }
 
   *pArg2 = lPtr;
+  if (isOpcode(*pArg2)) {
+    #if (DEBUG)
+    printf("'%s' cannot be an argument!\n", *pArg2);
+    printf("Exit code: 4\n");
+    #endif
+
+    exit(4);
+  }
 
   if(!(lPtr = strtok(NULL, "\t\n ,"))) {
     return( OK );
   }
 
   *pArg3 = lPtr;
+  if (isOpcode(*pArg3)) {
+    #if (DEBUG)
+    printf("'%s' cannot be an argument!\n", *pArg3);
+    printf("Exit code: 4\n");
+    #endif
+
+    exit(4);
+  }
 
   if(!(lPtr = strtok(NULL, "\t\n ,"))) {
     return( OK );
   }
 
   *pArg4 = lPtr;
+  if (isOpcode(*pArg4)) {
+    #if (DEBUG)
+    printf("'%s' cannot be an argument!\n", *pArg4);
+    printf("Exit code: 4\n");
+    #endif
+
+    exit(4);
+  }
 
   return(OK);
 }
@@ -348,8 +380,8 @@ first_pass(char* infile) {
   /* Do the First Pass and check for .ORIG/.END and Labels */
   bool orig = false;
   bool end = false;
-  uint16_t init_PC = 0;
-  uint16_t temp_PC = 0;
+  uint32_t init_PC = 0;
+  uint32_t temp_PC = 0;
 
   do {
     lRet = readAndParse(input, pLine, pLabel, pOpcode, pArg1, pArg2, pArg3, pArg4);
@@ -364,6 +396,16 @@ first_pass(char* infile) {
         string_equal(*pOpcode, "brnz") ||
         string_equal(*pOpcode, "brnzp")) {
         if (!find_label(*pArg1)) {
+          if (pArg1[0][0] == 'x' ||
+              pArg1[0][0] == '#') {
+            #if (DEBUG)
+            printf("Found undefined label: %s\n", *pArg1);
+            printf("Error Code: %d\n", 4);
+            #endif
+
+            exit(4);
+          }
+
           #if (DEBUG)
           printf("Found undefined label: %s\n", *pArg1);
           printf("Error Code: %d\n", 1);
@@ -375,6 +417,16 @@ first_pass(char* infile) {
 
       if (string_equal(*pOpcode, "lea")) {
         if (!find_label(*pArg2)) {
+          if (pArg2[0][0] == 'x' ||
+              pArg2[0][0] == '#') {
+            #if (DEBUG)
+            printf("Found undefined label: %s\n", *pArg1);
+            printf("Error Code: %d\n", 4);
+            #endif
+
+            exit(4);
+          }
+
           #if (DEBUG)
           printf("Found undefined label: %s\n", *pArg2);
           printf("Error Code: %d\n", 1);
@@ -386,6 +438,16 @@ first_pass(char* infile) {
 
       if (string_equal(*pOpcode, "jsr")) {
         if (!find_label(*pArg1)) {
+          if (pArg1[0][0] == 'x' ||
+              pArg1[0][0] == '#') {
+            #if (DEBUG)
+            printf("Found undefined label: %s\n", *pArg1);
+            printf("Error Code: %d\n", 4);
+            #endif
+
+            exit(4);
+          }
+
           #if (DEBUG)
           printf("Found undefined label: %s\n", *pArg1);
           printf("Error Code: %d\n", 1);
@@ -400,6 +462,7 @@ first_pass(char* infile) {
       }
 
       if (string_equal(*pOpcode, ".orig")) {
+        /* PC value cannot be negative */
         if (pArg1[0][1] == '-') {
           #if (DEBUG)
           printf("Error Code: %d\n", 3);
@@ -409,6 +472,7 @@ first_pass(char* infile) {
         }
 
         temp_PC = toNum(*pArg1);
+        printf("toNum: %d\n", toNum(*pArg1));
 
         /* PC value cannot be odd */
         if ((temp_PC % 2) == 1) {
@@ -419,8 +483,17 @@ first_pass(char* infile) {
           exit(3);
         }
 
+        /* PC value being out of bounds */
+        if (temp_PC > 0xFFFF) {
+          #if (DEBUG)
+          printf(".ORIG PC value is greater than 0xFFFF");
+          printf("Exit code: 3\n");
+          #endif
+
+          exit(3);
+        }
+
         init_PC = temp_PC;
-        PC = init_PC;
         orig = true;
       } else {
         temp_PC += 2;
@@ -452,11 +525,17 @@ second_pass(char* infile, char* outfile) {
   char* pArg3[MAX_LINE_LENGTH + 1];
   char* pArg4[MAX_LINE_LENGTH + 1];
 
+  uint16_t PC = 0;
+
   do {
     lRet = readAndParse(input, pLine, pLabel, pOpcode, pArg1, pArg2, pArg3, pArg4);
 
     if (lRet != DONE && lRet != EMPTY_LINE) {
-      if (run(output, *pLabel, *pOpcode, *pArg1, *pArg2, *pArg3, *pArg4) == FINISH) {
+      if (string_equal(*pOpcode, ".orig")) {
+        PC = toNum(*pArg1);
+      }
+
+      if (run(output, &PC, *pLabel, *pOpcode, *pArg1, *pArg2, *pArg3, *pArg4) == FINISH) {
         break;
       }
       PC += 2;
@@ -480,8 +559,9 @@ create_all_labels(char* infile) {
   char* pArg3[MAX_LINE_LENGTH + 1];
   char* pArg4[MAX_LINE_LENGTH + 1];
 
-  uint16_t init_PC = 0;
-  uint16_t temp_PC = 0;
+  uint32_t init_PC = 0;
+  uint32_t temp_PC = 0;
+
   do {
     lRet = readAndParse(input, pLine, pLabel, pOpcode, pArg1, pArg2, pArg3, pArg4);
 
@@ -492,6 +572,7 @@ create_all_labels(char* infile) {
       }
 
       if (string_equal(*pOpcode, ".orig")) {
+        /* PC value cannot be negative */
         if (pArg1[0][1] == '-') {
           #if (DEBUG)
           printf("Error Code: %d\n", 3);
@@ -505,6 +586,7 @@ create_all_labels(char* infile) {
         #endif
 
         temp_PC = toNum(*pArg1);
+        printf("toNum: %d\n", toNum(*pArg1));
 
         /* PC value cannot be odd */
         if ((temp_PC % 2) == 1) {
@@ -516,8 +598,17 @@ create_all_labels(char* infile) {
           exit(3);
         }
 
+        /* PC value being out of bounds */
+        if (temp_PC > 0xFFFF) {
+          #if (DEBUG)
+          printf(".ORIG PC value is greater than 0xFFFF");
+          printf("Exit code: 3\n");
+          #endif
+
+          exit(3);
+        }
+
         init_PC = temp_PC;
-        PC = init_PC;
       } else {
         temp_PC += 2;
       }
@@ -782,7 +873,7 @@ CHECK_AMOUNT4(int16_t AMOUNT4) {
 
 void
 CHECK_TRAPVECT8(int16_t TRAPVECT8) {
-  if (TRAPVECT8 > power(2, 8)) {
+  if (TRAPVECT8 > (power(2, 8) - 1)) {
     /* TRAPVECT8 is greater than the max positive value */
     #if (DEBUG)
     printf("TRAPVECT8 %d is too big!\n", TRAPVECT8);
@@ -793,7 +884,7 @@ CHECK_TRAPVECT8(int16_t TRAPVECT8) {
   } else if (TRAPVECT8 < 0) {
     /* TRAPVECT8 cannot be a negative value */
     #if (DEBUG)
-    printf("TRAPVECT8 %d is too big!\n", TRAPVECT8);
+    printf("TRAPVECT8 %d cannot be negative!\n", TRAPVECT8);
     printf("Error Code: %d\n", 3);
     #endif
 
@@ -823,7 +914,7 @@ CHECK_FILL(int16_t FILL) {
 }
 
 enum run_type
-run(FILE* outfile, char* Label, char* Opcode, char* arg1, char* arg2, char* arg3, char* arg4) {
+run(FILE* outfile, uint16_t* PC, char* Label, char* Opcode, char* arg1, char* arg2, char* arg3, char* arg4) {
   uint16_t instruction = 0;
 
   // todo: check for which immediates are signed, which ones are not signed...
@@ -905,10 +996,14 @@ run(FILE* outfile, char* Label, char* Opcode, char* arg1, char* arg2, char* arg3
 
     struct label* label = find_label(arg1);
     if (label != NULL) {
-      int16_t PC_OFFSET9 = ((int16_t)label->addr - (int16_t)PC) / 2;
+      int32_t PC_OFFSET9 = (label->addr - *PC) / 2;
       CHECK_PCOFFSET9(PC_OFFSET9);
-      printf("Here is the label->addr: %d and PC: %d\n", label->addr, PC);
+
+      #if (DEBUG)
+      printf("Here is the label->addr: %d and PC: %d\n", label->addr, *PC);
       printf("Here it is before/after formatting: %x/%x\n", PC_OFFSET9, SET_PCOFFSET9(PC_OFFSET9));
+      #endif
+
       instruction = SET_OPCODE(BR) | SET_CC_N(N_ON) | SET_CC_Z(Z_ON) | SET_CC_P(P_ON) | SET_PCOFFSET9(PC_OFFSET9);
     } else {
       #if (DEBUG)
@@ -933,7 +1028,7 @@ run(FILE* outfile, char* Label, char* Opcode, char* arg1, char* arg2, char* arg3
 
     struct label* label = find_label(arg1);
     if (label != NULL) {
-      int16_t PC_OFFSET9 = ((int16_t)label->addr - (int16_t)PC) / 2;
+      int32_t PC_OFFSET9 = (label->addr - *PC) / 2;
       CHECK_PCOFFSET9(PC_OFFSET9);
       instruction = SET_OPCODE(BR) | SET_CC_N(N_OFF) | SET_CC_Z(Z_OFF) | SET_CC_P(P_ON) | SET_PCOFFSET9(PC_OFFSET9);
     } else {
@@ -961,7 +1056,7 @@ run(FILE* outfile, char* Label, char* Opcode, char* arg1, char* arg2, char* arg3
 
     struct label* label = find_label(arg1);
     if (label != NULL) {
-      int16_t PC_OFFSET9 = ((int16_t)label->addr - (int16_t)PC) / 2;
+      int32_t PC_OFFSET9 = (label->addr - *PC) / 2;
       CHECK_PCOFFSET9(PC_OFFSET9);
       instruction = SET_OPCODE(BR) | SET_CC_N(N_OFF) | SET_CC_Z(Z_ON) | SET_CC_P(P_OFF) | SET_PCOFFSET9(PC_OFFSET9);
     } else {
@@ -989,7 +1084,7 @@ run(FILE* outfile, char* Label, char* Opcode, char* arg1, char* arg2, char* arg3
 
     struct label* label = find_label(arg1);
     if (label != NULL) {
-      int16_t PC_OFFSET9 = ((int16_t)label->addr - (int16_t)PC) / 2;
+      int32_t PC_OFFSET9 = (label->addr - *PC) / 2;
       CHECK_PCOFFSET9(PC_OFFSET9);
       instruction = SET_OPCODE(BR) | SET_CC_N(N_OFF) | SET_CC_Z(Z_ON) | SET_CC_P(P_ON) | SET_PCOFFSET9(PC_OFFSET9);
     } else {
@@ -1015,7 +1110,7 @@ run(FILE* outfile, char* Label, char* Opcode, char* arg1, char* arg2, char* arg3
 
     struct label* label = find_label(arg1);
     if (label != NULL) {
-      int16_t PC_OFFSET9 = ((int16_t)label->addr - (int16_t)PC) / 2;
+      int32_t PC_OFFSET9 = (label->addr - *PC) / 2;
       CHECK_PCOFFSET9(PC_OFFSET9);
       instruction = SET_OPCODE(BR) | SET_CC_N(N_ON) | SET_CC_Z(Z_OFF) | SET_CC_P(P_OFF) | SET_PCOFFSET9(PC_OFFSET9);
     } else {
@@ -1042,7 +1137,7 @@ run(FILE* outfile, char* Label, char* Opcode, char* arg1, char* arg2, char* arg3
 
     struct label* label = find_label(arg1);
     if (label != NULL) {
-      int16_t PC_OFFSET9 = ((int16_t)label->addr - (int16_t)PC) / 2;
+      int32_t PC_OFFSET9 = (label->addr - *PC) / 2;
       CHECK_PCOFFSET9(PC_OFFSET9);
       instruction = SET_OPCODE(BR) | SET_CC_N(N_ON) | SET_CC_Z(Z_OFF) | SET_CC_P(P_ON) | SET_PCOFFSET9(PC_OFFSET9);
     } else {
@@ -1069,7 +1164,7 @@ run(FILE* outfile, char* Label, char* Opcode, char* arg1, char* arg2, char* arg3
 
     struct label* label = find_label(arg1);
     if (label != NULL) {
-      int16_t PC_OFFSET9 = ((int16_t)label->addr - (int16_t)PC) / 2;
+      int32_t PC_OFFSET9 = (label->addr - *PC) / 2;
       CHECK_PCOFFSET9(PC_OFFSET9);
       instruction = SET_OPCODE(BR) | SET_CC_N(N_ON) | SET_CC_Z(Z_ON) | SET_CC_P(P_OFF) | SET_PCOFFSET9(PC_OFFSET9);
     } else {
@@ -1096,7 +1191,7 @@ run(FILE* outfile, char* Label, char* Opcode, char* arg1, char* arg2, char* arg3
 
     struct label* label = find_label(arg1);
     if (label != NULL) {
-      int16_t PC_OFFSET9 = ((int16_t)label->addr - (int16_t)PC) / 2;
+      int32_t PC_OFFSET9 = (label->addr - *PC) / 2;
       CHECK_PCOFFSET9(PC_OFFSET9);
       instruction = SET_OPCODE(BR) | SET_CC_N(N_ON) | SET_CC_Z(Z_ON) | SET_CC_P(P_ON) | SET_PCOFFSET9(PC_OFFSET9);
     } else {
@@ -1162,7 +1257,7 @@ run(FILE* outfile, char* Label, char* Opcode, char* arg1, char* arg2, char* arg3
 
     struct label* label = find_label(arg1);
     if (label != NULL) {
-      int16_t PC_OFFSET11 = ((int16_t)label->addr - (int16_t)PC) / 2;
+      int32_t PC_OFFSET11 = (label->addr - *PC) / 2;
       CHECK_PCOFFSET11(PC_OFFSET11);
       instruction = SET_OPCODE(JSR) | SET_IMM_OR_REG_B11(IMMEDIATE) | SET_PCOFFSET11(PC_OFFSET11);
     } else {
@@ -1264,10 +1359,10 @@ run(FILE* outfile, char* Label, char* Opcode, char* arg1, char* arg2, char* arg3
 
       if (label != NULL) {
         #if (DEBUG)
-        printf("These are the addresses: 0x%x 0x%x\n", label->addr, PC);
+        printf("These are the addresses: 0x%x 0x%x\n", label->addr, *PC);
         #endif
 
-        int16_t PC_OFFSET9 = ((int16_t)label->addr - (int16_t)PC) / 2;
+        int32_t PC_OFFSET9 = (label->addr - *PC) / 2;
         CHECK_PCOFFSET9(PC_OFFSET9);
         instruction = SET_OPCODE(LEA) | SET_DR(reg_value1) | SET_PCOFFSET9(PC_OFFSET9);
       } else {
@@ -1309,8 +1404,9 @@ run(FILE* outfile, char* Label, char* Opcode, char* arg1, char* arg2, char* arg3
     int reg_value2 = check_register(arg2);
 
     if (!((reg_value1 < 0) || (reg_value2 < 0))) {
-      // todo: AMOUNT4 CANNOT BE NEGATIVE
-      instruction = SET_OPCODE(LSHF) | SET_DR(reg_value1) | SET_SR(reg_value2) | SET_SHF_TYPE(LSHF_TYPE) | SET_AMOUNT4(toNum(arg3));
+      int16_t AMOUNT4 = toNum(arg3);
+      CHECK_AMOUNT4(AMOUNT4);
+      instruction = SET_OPCODE(LSHF) | SET_DR(reg_value1) | SET_SR(reg_value2) | SET_SHF_TYPE(LSHF_TYPE) | SET_AMOUNT4(AMOUNT4);
 
       #if (DEBUG)
       printf("0x%4X\n", instruction);
@@ -1428,7 +1524,10 @@ run(FILE* outfile, char* Label, char* Opcode, char* arg1, char* arg2, char* arg3
     check_arguments(Opcode, arg3);
     check_arguments(Opcode, arg4);
 
-    instruction = SET_OPCODE(TRAP) | SET_TRAPVECT8(toNum(arg1));
+    int16_t TRAPVECT_8 = toNum(arg1);
+    CHECK_TRAPVECT8(TRAPVECT_8);
+
+    instruction = SET_OPCODE(TRAP) | SET_TRAPVECT8(TRAPVECT_8);
 
     #if (DEBUG)
     printf("0x%4X\n", instruction);
@@ -1560,8 +1659,7 @@ run(FILE* outfile, char* Label, char* Opcode, char* arg1, char* arg2, char* arg3
 }
 
 void
-assembler_init(FILE** infile, FILE** outfile, char* prgName, char* iFileName, char* oFileName,
-               char** pLabel, char** pOpcode, char** pArg1, char** pArg2, char** pArg3, char** pArg4) {
+assembler_init(FILE** infile, FILE** outfile, char* prgName, char* iFileName, char* oFileName) {
   if (prgName == NULL ||
       iFileName == NULL ||
       oFileName == NULL) {
@@ -1608,17 +1706,11 @@ main(int argc, char* argv[]) {
   FILE* infile;
   FILE* outfile;
 
-  char pLine[MAX_LINE_LENGTH + 1];
-  char* pLabel[MAX_LINE_LENGTH + 1];
-  char* pOpcode[MAX_LINE_LENGTH + 1];
-  char* pArg1[MAX_LINE_LENGTH + 1];
-  char* pArg2[MAX_LINE_LENGTH + 1];
-  char* pArg3[MAX_LINE_LENGTH + 1];
-  char* pArg4[MAX_LINE_LENGTH + 1];
-
-  assembler_init(&infile, &outfile, prgName, iFileName, oFileName, pLabel, pOpcode, pArg1, pArg2, pArg3, pArg4);
+  assembler_init(&infile, &outfile, prgName, iFileName, oFileName);
 
   create_all_labels(argv[1]);
   first_pass(argv[1]);
   second_pass(argv[1], argv[2]);
+
+  exit(0);
 }
