@@ -437,6 +437,35 @@ first_pass(char* infile) {
 }
 
 void
+second_pass(char* infile, char* outfile) {
+  int lRet;
+  FILE* input = fopen(infile, "r");
+  FILE* output = fopen(outfile, "w");
+
+  char pLine[MAX_LINE_LENGTH + 1];
+  char* pLabel[MAX_LINE_LENGTH + 1];
+  char* pOpcode[MAX_LINE_LENGTH + 1];
+  char* pArg1[MAX_LINE_LENGTH + 1];
+  char* pArg2[MAX_LINE_LENGTH + 1];
+  char* pArg3[MAX_LINE_LENGTH + 1];
+  char* pArg4[MAX_LINE_LENGTH + 1];
+
+  do {
+    lRet = readAndParse(input, pLine, pLabel, pOpcode, pArg1, pArg2, pArg3, pArg4);
+
+    if (lRet != DONE && lRet != EMPTY_LINE) {
+      if (run(output, *pLabel, *pOpcode, *pArg1, *pArg2, *pArg3, *pArg4) == FINISH) {
+        break;
+      }
+      PC += 2;
+    }
+  } while(lRet != DONE);
+
+  fclose(input);
+  fclose(output);
+}
+
+void
 create_all_labels(char* infile) {
   FILE* input = fopen(infile, "r");
   int lRet;
@@ -1588,20 +1617,5 @@ main(int argc, char* argv[]) {
 
   create_all_labels(argv[1]);
   first_pass(argv[1]);
-
-  // rewind(infile);
-
-  // do {
-  //   lRet = readAndParse(infile, pLine, pLabel, pOpcode, pArg1, pArg2, pArg3, pArg4);
-
-  //   if (lRet != DONE && lRet != EMPTY_LINE) {
-  //     if (run(outfile, *pLabel, *pOpcode, *pArg1, *pArg2, *pArg3, *pArg4) == FINISH) {
-  //       break;
-  //     }
-  //     PC += 2;
-  //   }
-  // } while(lRet != DONE);
-
-  // fclose(infile);
-  // fclose(outfile);
+  second_pass(argv[1], argv[2]);
 }

@@ -154,3 +154,6 @@ check_valid_label(char* label);
 
 void
 add_label(char* new_label, uint16_t current_PC);
+
+enum run_type
+run(FILE* outfile, char* Label, char* Opcode, char* arg1, char* arg2, char* arg3, char* arg4);
