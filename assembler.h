@@ -7,7 +7,7 @@
 /*                                                                                     */
 /***************************************************************************************/
 
-#define DEBUG 0
+#define DEBUG 1
 
 enum
 {
@@ -35,7 +35,7 @@ struct label {
 // Opcodes
 enum opcode {
   ADD = 0x1,
-  AND = 0xA,
+  AND = 0x5,
 
   BR = 0x0,
   BRP = 0x0,
@@ -148,3 +148,9 @@ readAndParse(FILE* pInfile, char* pLine, char** pLabel,
 
 bool
 isOpcode(char* str);
+
+bool
+check_valid_label(char* label);
+
+void
+add_label(char* new_label, uint16_t current_PC);

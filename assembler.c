@@ -1,3 +1,10 @@
+/*
+	Name 1: Masaad Khan
+	Name 2: Rithvik Dyava
+	UTEID 1: mak4668
+	UTEID 2: rd29228
+*/
+
 #include <stdio.h> /* standard input/output library */
 #include <stdlib.h> /* Standard C Library */
 #include <string.h> /* String operations library */
@@ -109,6 +116,10 @@ toNum(char* pStr) {
     for(k=0; k < t_length; k++) {
       if (!isdigit(*t_ptr)) {
         printf("Error: invalid decimal operand, %s\n",orig_pStr);
+        #if (DEBUG)
+        printf("Error Code: %d\n", 4);
+        #endif
+
         exit(4);
       }
       t_ptr++;
@@ -135,6 +146,10 @@ toNum(char* pStr) {
     for(k=0; k < t_length; k++) {
       if (!isxdigit(*t_ptr)) {
         printf("Error: invalid hex operand, %s\n",orig_pStr);
+        #if (DEBUG)
+        printf("Error Code: %d\n", 4);
+        #endif
+
         exit(4);
       }
       t_ptr++;
@@ -152,6 +167,10 @@ toNum(char* pStr) {
   } else {
     printf( "Error: invalid operand, %s\n", orig_pStr);
     /* This has been changed from error code 3 to error code 4, see clarification 12 */
+    #if (DEBUG)
+    printf("Error Code: %d\n", 4);
+    #endif
+
     exit(4);
   }
 }
@@ -232,7 +251,9 @@ label_exists(char* label) {
       if (string_equal(g_labels[i].label, label)) {
         #if (DEBUG)
         printf("Found a label that is already init-ed\n");
+        printf("Error Code: %d\n", 4);
         #endif
+
         exit(4);
       }
     }
@@ -245,7 +266,7 @@ find_label(char* label) {
     if (g_labels[i].label[0] != '\0') {
       if (string_equal(g_labels[i].label, label)) {
         #if (DEBUG)
-        printf("Found our label: %s\n", g_labels[i].label);
+        printf("Found our label: %s at address: 0x%x\n", g_labels[i].label, g_labels[i].addr);
         #endif
         return &g_labels[i];
       }
@@ -255,7 +276,251 @@ find_label(char* label) {
   #if (DEBUG)
   printf("Did not find label: %s\n", label);
   #endif
+
+  /* Assuming that we can take immediate values... todo*/
+  return NULL;
+}
+
+bool
+search_label(char* infile, char* label) {
+  FILE* input = fopen(infile, "r");
+  int lRet;
+  char pLine[MAX_LINE_LENGTH + 1];
+  char* pLabel[MAX_LINE_LENGTH + 1];
+  char* pOpcode[MAX_LINE_LENGTH + 1];
+  char* pArg1[MAX_LINE_LENGTH + 1];
+  char* pArg2[MAX_LINE_LENGTH + 1];
+  char* pArg3[MAX_LINE_LENGTH + 1];
+  char* pArg4[MAX_LINE_LENGTH + 1];
+
+  do {
+    lRet = readAndParse(input, pLine, pLabel, pOpcode, pArg1, pArg2, pArg3, pArg4);
+
+    if (string_equal(*pOpcode, "br") ||
+        string_equal(*pOpcode, "brp") ||
+        string_equal(*pOpcode, "brz") ||
+        string_equal(*pOpcode, "brzp") ||
+        string_equal(*pOpcode, "brn") ||
+        string_equal(*pOpcode, "brnp") ||
+        string_equal(*pOpcode, "brnz") ||
+        string_equal(*pOpcode, "brnzp")) {
+      if (string_equal(*pArg1, label)) {
+        return true;
+      }
+    }
+
+    if (string_equal(*pOpcode, "lea")) {
+      if (string_equal(*pArg2, label)) {
+        return true;
+      }
+    }
+
+    if (string_equal(*pOpcode, "jsr")) {
+      if (string_equal(*pArg1, label)) {
+        return true;
+      }
+    }
+    
+  } while(lRet != DONE);
+
+  /* Was not able to see this label as an argument */
+  #if (DEBUG)
+  printf("Found unused label: %s\n", label);
+  printf("Error Code: %d\n", 4);
+  #endif
+
   exit(4);
+}
+
+void
+first_pass(char* infile) {
+  int lRet;
+  FILE* input = fopen(infile, "r");
+
+  char pLine[MAX_LINE_LENGTH + 1];
+  char* pLabel[MAX_LINE_LENGTH + 1];
+  char* pOpcode[MAX_LINE_LENGTH + 1];
+  char* pArg1[MAX_LINE_LENGTH + 1];
+  char* pArg2[MAX_LINE_LENGTH + 1];
+  char* pArg3[MAX_LINE_LENGTH + 1];
+  char* pArg4[MAX_LINE_LENGTH + 1];
+
+  /* Do the First Pass and check for .ORIG/.END and Labels */
+  bool orig = false;
+  bool end = false;
+  uint16_t init_PC = 0;
+  uint16_t temp_PC = 0;
+
+  do {
+    lRet = readAndParse(input, pLine, pLabel, pOpcode, pArg1, pArg2, pArg3, pArg4);
+
+    if (lRet != DONE && lRet != EMPTY_LINE) {
+      if (string_equal(*pOpcode, "br") ||
+        string_equal(*pOpcode, "brp") ||
+        string_equal(*pOpcode, "brz") ||
+        string_equal(*pOpcode, "brzp") ||
+        string_equal(*pOpcode, "brn") ||
+        string_equal(*pOpcode, "brnp") ||
+        string_equal(*pOpcode, "brnz") ||
+        string_equal(*pOpcode, "brnzp")) {
+        if (!find_label(*pArg1)) {
+          #if (DEBUG)
+          printf("Found undefined label: %s\n", *pArg1);
+          printf("Error Code: %d\n", 4);
+          #endif
+
+          exit(4);
+        }
+      }
+
+      if (string_equal(*pOpcode, "lea")) {
+        if (!find_label(*pArg2)) {
+          #if (DEBUG)
+          printf("Found undefined label: %s\n", *pArg2);
+          printf("Error Code: %d\n", 4);
+          #endif
+
+          exit(4);
+        }
+      }
+
+      if (string_equal(*pOpcode, "jsr")) {
+        if (!find_label(*pArg1)) {
+          #if (DEBUG)
+          printf("Found undefined label: %s\n", *pArg1);
+          printf("Error Code: %d\n", 4);
+          #endif
+
+          exit(4);
+        }
+      }
+
+      if (string_equal(*pOpcode, ".end")) {
+        end = true;
+      }
+
+      if (string_equal(*pOpcode, ".orig")) {
+        if (pArg1[0][1] == '-') {
+          #if (DEBUG)
+          printf("Error Code: %d\n", 3);
+          #endif
+
+          exit(3);
+        }
+
+        temp_PC = toNum(*pArg1);
+
+        /* PC value cannot be odd */
+        if ((temp_PC % 2) == 1) {
+          #if (DEBUG)
+          printf("Error Code: %d\n", 3);
+          #endif
+
+          exit(3);
+        }
+
+        init_PC = temp_PC;
+        PC = init_PC;
+        orig = true;
+      } else {
+        temp_PC += 2;
+      }
+    }
+  } while(lRet != DONE);
+
+  if (!orig || !end) {
+    #if (DEBUG)
+    printf("Was not able to find a .ORIG OR .END\n");
+    #endif
+    exit(0);
+  }
+}
+
+void
+create_all_labels(char* infile) {
+  FILE* input = fopen(infile, "r");
+  int lRet;
+
+  char pLine[MAX_LINE_LENGTH + 1];
+  char* pLabel[MAX_LINE_LENGTH + 1];
+  char* pOpcode[MAX_LINE_LENGTH + 1];
+  char* pArg1[MAX_LINE_LENGTH + 1];
+  char* pArg2[MAX_LINE_LENGTH + 1];
+  char* pArg3[MAX_LINE_LENGTH + 1];
+  char* pArg4[MAX_LINE_LENGTH + 1];
+
+  uint16_t init_PC = 0;
+  uint16_t temp_PC = 0;
+  do {
+    lRet = readAndParse(input, pLine, pLabel, pOpcode, pArg1, pArg2, pArg3, pArg4);
+
+    if (lRet != DONE && lRet != EMPTY_LINE) {
+      if (**(pLabel) != '\0') {
+        check_valid_label(*pLabel);
+        add_label(*pLabel, temp_PC);
+      }
+
+      if (string_equal(*pOpcode, ".orig")) {
+        if (pArg1[0][1] == '-') {
+          #if (DEBUG)
+          printf("Error Code: %d\n", 3);
+          #endif
+
+          exit(3);
+        }
+
+        #if (DEBUG)
+        printf("Here is our PC value: 0x%x\n", toNum(*pArg1));
+        #endif
+
+        temp_PC = toNum(*pArg1);
+
+        /* PC value cannot be odd */
+        if ((temp_PC % 2) == 1) {
+          #if (DEBUG)
+          printf("Error Code: %d\n", 3);
+          #endif
+
+          exit(3);
+        }
+
+        init_PC = temp_PC;
+        PC = init_PC;
+      } else {
+        temp_PC += 2;
+      }
+    }
+  } while(lRet != DONE);
+
+  fclose(input);
+}
+
+bool
+check_valid_label(char* label) {
+  if ((label[0] == 'x') ||
+      isdigit(label[0])) {
+    printf("Found invalid label: %s\n", label);
+
+    #if (DEBUG)
+    printf("Error Code: %d\n", 4);
+    #endif
+
+    exit(4);
+  }
+  
+  for (int i = 0; i < strlen(label); i++) {
+    if (!isalnum(label[i])) {
+      printf("Found invalid label: %s\n", label);
+
+      #if (DEBUG)
+      printf("Error Code: %d\n", 4);
+      #endif
+
+      exit(4);
+    }
+  }
+
+  return true;
 }
 
 void
@@ -270,37 +535,21 @@ print_labels(void) {
 }
 
 void
-add_label(char* new_label, uint16_t PC) {
+add_label(char* new_label, uint16_t current_PC) {
   /* If we find a pre-existing label, then label_exists will exit(4) */
   label_exists(new_label);
 
   for (int i = 0; i < MAX_NUM_LABELS; i++) {
     if (g_labels[i].label[0] == '\0') {
       #if (DEBUG)
-      printf("Added g_labels[%d]: %s at address: 0x%x\n", i, new_label, PC);
+      printf("Added g_labels[%d]: %s at address: 0x%x\n", i, new_label, current_PC);
       #endif
 
-      g_labels[i].addr = PC;
+      g_labels[i].addr = current_PC;
       strcpy(g_labels[i].label, new_label);
       break;
     }
   }
-}
-
-void
-convert_args(char* arg) {
-  /* We can only get passed in registers or immediate values */
-  /* But you can get passed in labels for LEA, JSR, JSRR, and BR */
-  // if (arg[0] == 'r') {
-  //   // This argument must be a register
-  //   "r10"
-  //   int sum = 0;
-  //   for (int i = 1; i < strlen("r10"); i++) {
-  //     sum += arg[i];
-  //   }
-  //   sum -= arg[0]];
-  //   convert_str_to_num("10");
-  // }
 }
 
 int
@@ -312,7 +561,6 @@ check_register(char* reg) {
     strcpy(reg_copy, reg);
     reg_copy[0] = '#';
 
-    // rabc r101231231a ra123123123 r#123123 rx-123123 r#-12312321
     int reg_value = toNum(reg_copy);
 
     free(reg_copy);
@@ -321,7 +569,9 @@ check_register(char* reg) {
       /* Register Value is too big */
       #if (DEBUG)
       printf("Given register value (%d) is too big!\n", reg_value);
+      printf("Error Code: %d\n", 4);
       #endif
+
       exit(4);
     } else {
       return reg_value;
@@ -336,8 +586,207 @@ check_arguments(char* Opcode, char* argument) {
   if (*argument != '\0') {
     #if (DEBUG)
     printf("Argument (%s), passed to %s should be empty\n", argument, Opcode);
+    printf("Exit code: %d\n", 1);
     #endif
+
     exit(1);
+  }
+}
+
+int
+power(int value, int exponent) {
+  int sum = value;
+  for (int i = exponent; i >= 2; i--) {
+    sum = sum*value;
+  }
+  return sum;
+}
+
+void
+CHECK_IMM5(int16_t IMM5) {
+  if (IMM5 > (power(2, 4) - 1)) {
+    /* IMM5 is greater than the max positive value */
+    #if (DEBUG)
+    printf("IMM5 %d is too big!\n", IMM5);
+    printf("Error Code: %d\n", 3);
+    #endif
+
+    exit(3);
+  } else if (IMM5 < (-power(2,4))) {
+    /* IMM5 is smaller than the most negative value */
+    #if (DEBUG)
+    printf("IMM5 %d is too small!\n", IMM5);
+    printf("Error Code: %d\n", 3);
+    #endif
+
+    exit(3);
+  }
+}
+
+void
+CHECK_PCOFFSET9(int16_t PC_OFFSET9) {
+  if (PC_OFFSET9 > (power(2, 8) - 1)) {
+    /* PC offset is greater than the max positive value */
+    #if (DEBUG)
+    printf("PC_OFFSET9 %d is too big!\n", PC_OFFSET9);
+    printf("Error Code: %d\n", 3);
+    #endif
+
+    exit(3);
+  } else if (PC_OFFSET9 < (-power(2,8))) {
+    /* PC offset is smaller than the most negative value */
+    #if (DEBUG)
+    printf("PC_OFFSET9 %d is too small!\n", PC_OFFSET9);
+    printf("Error Code: %d\n", 3);
+    #endif
+
+    exit(3);
+  }
+}
+
+void
+CHECK_PCOFFSET11(int16_t PC_OFFSET11) {
+  if (PC_OFFSET11 > (power(2, 10) - 1)) {
+    /* PC offset is greater than the max positive value */
+    #if (DEBUG)
+    printf("PC_OFFSET11 %d is too big!\n", PC_OFFSET11);
+    printf("Error Code: %d\n", 3);
+    #endif
+
+    exit(3);
+  } else if (PC_OFFSET11 < (-power(2,10))) {
+    /* PC offset is smaller than the most negative value */
+    #if (DEBUG)
+    printf("PC_OFFSET11 %d is too small!\n", PC_OFFSET11);
+    printf("Error Code: %d\n", 3);
+    #endif
+
+    exit(3);
+  }
+}
+
+void
+CHECK_BOFFSET6(int16_t BOFFSET6) {
+  if (BOFFSET6 > (power(2, 5) - 1)) {
+    /* BOFFSET6 is greater than the max positive value */
+    #if (DEBUG)
+    printf("BOFFSET6 %d is too big!\n", BOFFSET6);
+    printf("Error Code: %d\n", 3);
+    #endif
+
+    exit(3);
+  } else if (BOFFSET6 < (-power(2,5))) {
+    /* BOFFSET6 is smaller than the most negative value */
+    #if (DEBUG)
+    printf("BOFFSET6 %d is too small!\n", BOFFSET6);
+    printf("Error Code: %d\n", 3);
+    #endif
+
+    exit(3);
+  }
+}
+
+void
+CHECK_OFFSET6(int16_t OFFSET6) {
+  if (OFFSET6 > (power(2, 5) - 1)) {
+    /* OFFSET6 is greater than the max positive value */
+    #if (DEBUG)
+    printf("OFFSET6 %d is too big!\n", OFFSET6);
+    printf("Error Code: %d\n", 3);
+    #endif
+
+    exit(3);
+  } else if (OFFSET6 < (-power(2,5))) {
+    /* OFFSET6 is smaller than the most negative value */
+    #if (DEBUG)
+    printf("OFFSET6 %d is too small!\n", OFFSET6);
+    printf("Error Code: %d\n", 3);
+    #endif
+
+    exit(3);
+  }
+}
+
+void
+CHECK_DR(int16_t DR) { // todo: check if i need this...
+  if (DR > (power(2, 5) - 1)) {
+    /* DR is greater than the max positive value */
+    #if (DEBUG)
+    printf("Error Code: %d\n", 3);
+    #endif
+
+    exit(3);
+  } else if (DR < (-power(2,5))) {
+    /* DR is smaller than the most negative value */
+    #if (DEBUG)
+    printf("Error Code: %d\n", 3);
+    #endif
+
+    exit(3);
+  }
+}
+
+void
+CHECK_AMOUNT4(int16_t AMOUNT4) {
+  if (AMOUNT4 > (power(2, 4) - 1)) {
+    /* AMOUNT4 is greater than the max positive value */
+    #if (DEBUG)
+    printf("AMOUNT4 %d is too big!\n", AMOUNT4);
+    printf("Error Code: %d\n", 3);
+    #endif
+
+    exit(3);
+
+  } else if (AMOUNT4 < 0) {
+    /* AMOUNT4 cannot be negative */
+    #if (DEBUG)
+    printf("AMOUNT4 %d is too small!\n", AMOUNT4);
+    printf("Error Code: %d\n", 3);
+    #endif
+
+    exit(3);
+  }
+}
+
+void
+CHECK_TRAPVECT8(int16_t TRAPVECT8) {
+  if (TRAPVECT8 > power(2, 8)) {
+    /* TRAPVECT8 is greater than the max positive value */
+    #if (DEBUG)
+    printf("TRAPVECT8 %d is too big!\n", TRAPVECT8);
+    printf("Error Code: %d\n", 3);
+    #endif
+
+    exit(3);
+  } else if (TRAPVECT8 < 0) {
+    /* TRAPVECT8 cannot be a negative value */
+    #if (DEBUG)
+    printf("TRAPVECT8 %d is too big!\n", TRAPVECT8);
+    printf("Error Code: %d\n", 3);
+    #endif
+
+    exit(3);
+  }
+}
+
+void
+CHECK_FILL(int16_t FILL) {
+  if (FILL > (power(2, 16) - 1)) {
+    /* FILL is greater than the max positive value */
+    #if (DEBUG)
+    printf("FILL %d is too big!\n", FILL);
+    printf("Error Code: %d\n", 3);
+    #endif
+
+    exit(3);
+  } else if (FILL < (-power(2,15))) {
+    /* FILL cannot be a negative value */
+    #if (DEBUG)
+    printf("FILL %d is too big!\n", FILL);
+    printf("Error Code: %d\n", 3);
+    #endif
+
+    exit(3);
   }
 }
 
@@ -346,14 +795,10 @@ run(FILE* outfile, char* Label, char* Opcode, char* arg1, char* arg2, char* arg3
   uint16_t instruction = 0;
 
   // todo: check for which immediates are signed, which ones are not signed...
-  // todo: check if there is a # or x on the immediate arguments we get passed...
-  // todo: check for each instruction arg1, 2, 3, 4... 
   // todo: check whether the negative values stuff is working as intended
-  // todo: check if all registers accessed are proper, etc...
   // todo: check if the pcoffset, etc that the user inputs is valid
-  // todo: check the specifics of boffset6 
-  // todo: convert arg1.... to nums first.... but we also need to check labels
-  // todo: check if we need arg4... Is checking if an argument is NULL a good check for bad input... exit?
+  // todo: check the specifics of boffset6
+  // todo: .orig followed by negative number
   if (string_equal(Opcode, "add")) {
     check_arguments(Opcode, arg4);
 
@@ -367,7 +812,9 @@ run(FILE* outfile, char* Label, char* Opcode, char* arg1, char* arg2, char* arg3
       if (reg_value3 != -1) {
         instruction = SET_OPCODE(ADD) | SET_DR(reg_value1) | SET_SR1(reg_value2) | SET_IMM_OR_REG_B5(REGISTER) | SET_SR2(reg_value3);
       } else {
-        instruction = SET_OPCODE(ADD) | SET_DR(reg_value1) | SET_SR1(reg_value2) | SET_IMM_OR_REG_B5(IMMEDIATE) | SET_IMM5(toNum(arg3));
+        int16_t IMM5 = toNum(arg3);
+        CHECK_IMM5(IMM5);
+        instruction = SET_OPCODE(ADD) | SET_DR(reg_value1) | SET_SR1(reg_value2) | SET_IMM_OR_REG_B5(IMMEDIATE) | SET_IMM5(IMM5);
       }
 
       #if (DEBUG)
@@ -378,7 +825,9 @@ run(FILE* outfile, char* Label, char* Opcode, char* arg1, char* arg2, char* arg3
     } else {
       #if (DEBUG)
       printf("Bad register input: %s %s!\n", arg1, arg2);
+      printf("Exit code: %d\n", 1);
       #endif
+
       exit(1); // todo: idk if this is exit(1)
     }
     
@@ -392,10 +841,13 @@ run(FILE* outfile, char* Label, char* Opcode, char* arg1, char* arg2, char* arg3
 
     if (!((reg_value1 < 0) || (reg_value2 < 0))) {
       int reg_value3 = check_register(arg3);
-      if(reg_value3 != -1){
+      if(reg_value3 != -1) {
         instruction = SET_OPCODE(AND) | SET_DR(reg_value1) | SET_SR1(reg_value2) | SET_IMM_OR_REG_B5(REGISTER) | SET_SR2(reg_value3);
-      } else{
-        instruction = SET_OPCODE(AND) | SET_DR(reg_value1) | SET_SR1(reg_value2) | SET_IMM_OR_REG_B5(IMMEDIATE) | SET_IMM5(toNum(arg3));
+      } else {
+        int16_t IMM5 = toNum(arg3);
+        CHECK_IMM5(IMM5);
+        printf("Here is IMM5: %d, and unsigned: %d\n", IMM5&0x1f, (uint16_t)IMM5 & 0x1f);
+        instruction = SET_OPCODE(AND) | SET_DR(reg_value1) | SET_SR1(reg_value2) | SET_IMM_OR_REG_B5(IMMEDIATE) | SET_IMM5(IMM5);
       }
 
       #if (DEBUG)
@@ -404,10 +856,12 @@ run(FILE* outfile, char* Label, char* Opcode, char* arg1, char* arg2, char* arg3
 
       fprintf(outfile, "0x%04X\n", instruction);
     } else {
-        #if (DEBUG)
-        printf("Bad register input: %s %s!\n", arg1, arg2);
-        #endif
-        exit(1); // todo: idk if this is exit(1)
+      #if (DEBUG)
+      printf("Bad register input: %s %s!\n", arg1, arg2);
+      printf("Exit code: %d\n", 1);
+      #endif
+
+      exit(1);
     }
   }
 
@@ -418,10 +872,19 @@ run(FILE* outfile, char* Label, char* Opcode, char* arg1, char* arg2, char* arg3
     check_arguments(Opcode, arg4);
 
     struct label* label = find_label(arg1);
-    if (label == NULL) {
-      instruction = SET_OPCODE(BR) | SET_CC_N(N_OFF) | SET_CC_Z(Z_OFF) | SET_CC_P(P_OFF) | SET_PCOFFSET9(toNum(arg1));
+    if (label != NULL) {
+      int16_t PC_OFFSET9 = ((int16_t)label->addr - (int16_t)PC) / 2;
+      CHECK_PCOFFSET9(PC_OFFSET9);
+      printf("Here is the label->addr: %d and PC: %d\n", label->addr, PC);
+      printf("Here it is before/after formatting: %x/%x\n", PC_OFFSET9, SET_PCOFFSET9(PC_OFFSET9));
+      instruction = SET_OPCODE(BR) | SET_CC_N(N_ON) | SET_CC_Z(Z_ON) | SET_CC_P(P_ON) | SET_PCOFFSET9(PC_OFFSET9);
     } else {
-      instruction = SET_OPCODE(BR) | SET_CC_N(N_OFF) | SET_CC_Z(Z_OFF) | SET_CC_P(P_OFF) | SET_PCOFFSET9(label->addr - PC);
+      #if (DEBUG)
+      printf("Found an invalid operand: %s!\n", arg1);
+      printf("Exit code: %d\n", 4);
+      #endif
+
+      exit(4);
     }
 
     #if (DEBUG)
@@ -437,10 +900,17 @@ run(FILE* outfile, char* Label, char* Opcode, char* arg1, char* arg2, char* arg3
     check_arguments(Opcode, arg4);
 
     struct label* label = find_label(arg1);
-    if (label == NULL) {
-      instruction = SET_OPCODE(BR) | SET_CC_N(N_OFF) | SET_CC_Z(Z_OFF) | SET_CC_P(P_ON) | SET_PCOFFSET9(toNum(arg1));
+    if (label != NULL) {
+      int16_t PC_OFFSET9 = ((int16_t)label->addr - (int16_t)PC) / 2;
+      CHECK_PCOFFSET9(PC_OFFSET9);
+      instruction = SET_OPCODE(BR) | SET_CC_N(N_OFF) | SET_CC_Z(Z_OFF) | SET_CC_P(P_ON) | SET_PCOFFSET9(PC_OFFSET9);
     } else {
-      instruction = SET_OPCODE(BR) | SET_CC_N(N_OFF) | SET_CC_Z(Z_OFF) | SET_CC_P(P_ON) | SET_PCOFFSET9(label->addr - PC);
+      #if (DEBUG)
+      printf("Found an invalid operand: %s!\n", arg1);
+      printf("Exit code: %d\n", 4);
+      #endif
+
+      exit(4);
     }
 
     #if (DEBUG)
@@ -458,10 +928,17 @@ run(FILE* outfile, char* Label, char* Opcode, char* arg1, char* arg2, char* arg3
     check_arguments(Opcode, arg4);
 
     struct label* label = find_label(arg1);
-    if (label == NULL) {
-      instruction = SET_OPCODE(BR) | SET_CC_N(N_OFF) | SET_CC_Z(Z_ON) | SET_CC_P(P_OFF) | SET_PCOFFSET9(toNum(arg1));
+    if (label != NULL) {
+      int16_t PC_OFFSET9 = ((int16_t)label->addr - (int16_t)PC) / 2;
+      CHECK_PCOFFSET9(PC_OFFSET9);
+      instruction = SET_OPCODE(BR) | SET_CC_N(N_OFF) | SET_CC_Z(Z_ON) | SET_CC_P(P_OFF) | SET_PCOFFSET9(PC_OFFSET9);
     } else {
-      instruction = SET_OPCODE(BR) | SET_CC_N(N_OFF) | SET_CC_Z(Z_ON) | SET_CC_P(P_OFF) | SET_PCOFFSET9(label->addr - PC);
+      #if (DEBUG)
+      printf("Found an invalid operand: %s!\n", arg1);
+      printf("Exit code: %d\n", 4);
+      #endif
+
+      exit(4);
     }
 
     #if (DEBUG)
@@ -479,10 +956,17 @@ run(FILE* outfile, char* Label, char* Opcode, char* arg1, char* arg2, char* arg3
     check_arguments(Opcode, arg4);
 
     struct label* label = find_label(arg1);
-    if (label == NULL) {
-      instruction = SET_OPCODE(BR) | SET_CC_N(N_OFF) | SET_CC_Z(Z_ON) | SET_CC_P(P_ON) | SET_PCOFFSET9(toNum(arg1));
+    if (label != NULL) {
+      int16_t PC_OFFSET9 = ((int16_t)label->addr - (int16_t)PC) / 2;
+      CHECK_PCOFFSET9(PC_OFFSET9);
+      instruction = SET_OPCODE(BR) | SET_CC_N(N_OFF) | SET_CC_Z(Z_ON) | SET_CC_P(P_ON) | SET_PCOFFSET9(PC_OFFSET9);
     } else {
-      instruction = SET_OPCODE(BR) | SET_CC_N(N_OFF) | SET_CC_Z(Z_ON) | SET_CC_P(P_ON) | SET_PCOFFSET9(label->addr - PC);
+      #if (DEBUG)
+      printf("Found an invalid operand: %s!\n", arg1);
+      printf("Exit code: %d\n", 4);
+      #endif
+
+      exit(4);
     }
 
     #if (DEBUG)
@@ -498,10 +982,17 @@ run(FILE* outfile, char* Label, char* Opcode, char* arg1, char* arg2, char* arg3
     check_arguments(Opcode, arg4);
 
     struct label* label = find_label(arg1);
-    if (label == NULL) {
-      instruction = SET_OPCODE(BR) | SET_CC_N(N_ON) | SET_CC_Z(Z_OFF) | SET_CC_P(P_OFF) | SET_PCOFFSET9(toNum(arg1));
+    if (label != NULL) {
+      int16_t PC_OFFSET9 = ((int16_t)label->addr - (int16_t)PC) / 2;
+      CHECK_PCOFFSET9(PC_OFFSET9);
+      instruction = SET_OPCODE(BR) | SET_CC_N(N_ON) | SET_CC_Z(Z_OFF) | SET_CC_P(P_OFF) | SET_PCOFFSET9(PC_OFFSET9);
     } else {
-      instruction = SET_OPCODE(BR) | SET_CC_N(N_ON) | SET_CC_Z(Z_OFF) | SET_CC_P(P_OFF) | SET_PCOFFSET9(label->addr - PC);
+      #if (DEBUG)
+      printf("Found an invalid operand: %s!\n", arg1);
+      printf("Exit code: %d\n", 4);
+      #endif
+
+      exit(4);
     }
 
     #if (DEBUG)
@@ -518,10 +1009,17 @@ run(FILE* outfile, char* Label, char* Opcode, char* arg1, char* arg2, char* arg3
     check_arguments(Opcode, arg4);
 
     struct label* label = find_label(arg1);
-    if (label == NULL) {
-      instruction = SET_OPCODE(BR) | SET_CC_N(N_ON) | SET_CC_Z(Z_OFF) | SET_CC_P(P_ON) | SET_PCOFFSET9(toNum(arg1));
+    if (label != NULL) {
+      int16_t PC_OFFSET9 = ((int16_t)label->addr - (int16_t)PC) / 2;
+      CHECK_PCOFFSET9(PC_OFFSET9);
+      instruction = SET_OPCODE(BR) | SET_CC_N(N_ON) | SET_CC_Z(Z_OFF) | SET_CC_P(P_ON) | SET_PCOFFSET9(PC_OFFSET9);
     } else {
-      instruction = SET_OPCODE(BR) | SET_CC_N(N_ON) | SET_CC_Z(Z_OFF) | SET_CC_P(P_ON) | SET_PCOFFSET9(label->addr - PC);
+      #if (DEBUG)
+      printf("Found an invalid operand: %s!\n", arg1);
+      printf("Exit code: %d\n", 4);
+      #endif
+
+      exit(4);
     }
 
     #if (DEBUG)
@@ -538,10 +1036,17 @@ run(FILE* outfile, char* Label, char* Opcode, char* arg1, char* arg2, char* arg3
     check_arguments(Opcode, arg4);
 
     struct label* label = find_label(arg1);
-    if (label == NULL) {
-      instruction = SET_OPCODE(BR) | SET_CC_N(N_ON) | SET_CC_Z(Z_ON) | SET_CC_P(P_OFF) | SET_PCOFFSET9(toNum(arg1));
+    if (label != NULL) {
+      int16_t PC_OFFSET9 = ((int16_t)label->addr - (int16_t)PC) / 2;
+      CHECK_PCOFFSET9(PC_OFFSET9);
+      instruction = SET_OPCODE(BR) | SET_CC_N(N_ON) | SET_CC_Z(Z_ON) | SET_CC_P(P_OFF) | SET_PCOFFSET9(PC_OFFSET9);
     } else {
-      instruction = SET_OPCODE(BR) | SET_CC_N(N_ON) | SET_CC_Z(Z_ON) | SET_CC_P(P_OFF) | SET_PCOFFSET9(label->addr - PC);
+      #if (DEBUG)
+      printf("Found an invalid operand: %s!\n", arg1);
+      printf("Exit code: %d\n", 4);
+      #endif
+
+      exit(4);
     }
 
     #if (DEBUG)
@@ -558,10 +1063,17 @@ run(FILE* outfile, char* Label, char* Opcode, char* arg1, char* arg2, char* arg3
     check_arguments(Opcode, arg4);
 
     struct label* label = find_label(arg1);
-    if (label == NULL) {
-      instruction = SET_OPCODE(BR) | SET_CC_N(N_ON) | SET_CC_Z(Z_ON) | SET_CC_P(P_ON) | SET_PCOFFSET9(toNum(arg1));
+    if (label != NULL) {
+      int16_t PC_OFFSET9 = ((int16_t)label->addr - (int16_t)PC) / 2;
+      CHECK_PCOFFSET9(PC_OFFSET9);
+      instruction = SET_OPCODE(BR) | SET_CC_N(N_ON) | SET_CC_Z(Z_ON) | SET_CC_P(P_ON) | SET_PCOFFSET9(PC_OFFSET9);
     } else {
-      instruction = SET_OPCODE(BR) | SET_CC_N(N_ON) | SET_CC_Z(Z_ON) | SET_CC_P(P_ON) | SET_PCOFFSET9(label->addr - PC);
+      #if (DEBUG)
+      printf("Found an invalid operand: %s!\n", arg1);
+      printf("Exit code: %d\n", 4);
+      #endif
+
+      exit(4);
     }
 
     #if (DEBUG)
@@ -589,7 +1101,9 @@ run(FILE* outfile, char* Label, char* Opcode, char* arg1, char* arg2, char* arg3
     } else {
       #if (DEBUG)
       printf("Bad register input: %s!\n", arg1);
+      printf("Exit code: %d\n", 1);
       #endif
+
       exit(1); // todo: idk if this is exit(1)
     }
   }
@@ -615,10 +1129,17 @@ run(FILE* outfile, char* Label, char* Opcode, char* arg1, char* arg2, char* arg3
     check_arguments(Opcode, arg4);
 
     struct label* label = find_label(arg1);
-    if (label == NULL) {
-      instruction = SET_OPCODE(JSR) | SET_IMM_OR_REG_B11(IMMEDIATE) | SET_PCOFFSET11(toNum(arg1));
+    if (label != NULL) {
+      int16_t PC_OFFSET11 = ((int16_t)label->addr - (int16_t)PC) / 2;
+      CHECK_PCOFFSET11(PC_OFFSET11);
+      instruction = SET_OPCODE(JSR) | SET_IMM_OR_REG_B11(IMMEDIATE) | SET_PCOFFSET11(PC_OFFSET11);
     } else {
-      instruction = SET_OPCODE(JSR) | SET_IMM_OR_REG_B11(IMMEDIATE) | SET_PCOFFSET11(label->addr - PC);
+      #if (DEBUG)
+      printf("Found an invalid operand: %s!\n", arg1);
+      printf("Exit code: %d\n", 4);
+      #endif
+
+      exit(4);
     }
 
     #if (DEBUG)
@@ -646,7 +1167,9 @@ run(FILE* outfile, char* Label, char* Opcode, char* arg1, char* arg2, char* arg3
     } else {
       #if (DEBUG)
       printf("Bad register input: %s!\n", arg1);
+      printf("Exit code: %d\n", 1);
       #endif
+
       exit(1); // todo: idk if this is exit(1)
     }
   }
@@ -668,7 +1191,9 @@ run(FILE* outfile, char* Label, char* Opcode, char* arg1, char* arg2, char* arg3
     } else {
       #if (DEBUG)
       printf("Bad input: %s %s %d!\n", arg1, arg2, toNum(arg3));
+      printf("Exit code: %d\n", 1);
       #endif
+
       exit(1); // todo: idk if this is exit(1)
     }
   }
@@ -690,7 +1215,9 @@ run(FILE* outfile, char* Label, char* Opcode, char* arg1, char* arg2, char* arg3
     } else {
       #if (DEBUG)
       printf("Bad input: %s %s %d!\n", arg1, arg2, toNum(arg3));
+      printf("Exit code: %d\n", 1);
       #endif
+
       exit(1); // todo: idk if this is exit(1)
     }
   }
@@ -702,11 +1229,24 @@ run(FILE* outfile, char* Label, char* Opcode, char* arg1, char* arg2, char* arg3
     int reg_value1 = check_register(arg1);
     if (!(reg_value1 < 0)) {
       struct label* label = find_label(arg2);
-      if (label == NULL) {
-        instruction = SET_OPCODE(LEA) | SET_DR(reg_value1) | SET_PCOFFSET9(toNum(arg2));
+
+      if (label != NULL) {
+        #if (DEBUG)
+        printf("These are the addresses: 0x%x 0x%x\n", label->addr, PC);
+        #endif
+
+        int16_t PC_OFFSET9 = ((int16_t)label->addr - (int16_t)PC) / 2;
+        CHECK_PCOFFSET9(PC_OFFSET9);
+        instruction = SET_OPCODE(LEA) | SET_DR(reg_value1) | SET_PCOFFSET9(PC_OFFSET9);
       } else {
-        instruction = SET_OPCODE(LEA) | SET_DR(reg_value1) | SET_PCOFFSET9(label->addr - PC);
+        #if (DEBUG)
+        printf("Found an invalid operand: %s!\n", arg2);
+        printf("Exit code: %d\n", 4);
+        #endif
+
+        exit(4);
       }
+
       #if (DEBUG)
       printf("0x%4X\n", instruction);
       #endif
@@ -737,6 +1277,7 @@ run(FILE* outfile, char* Label, char* Opcode, char* arg1, char* arg2, char* arg3
     int reg_value2 = check_register(arg2);
 
     if (!((reg_value1 < 0) || (reg_value2 < 0))) {
+      // todo: AMOUNT4 CANNOT BE NEGATIVE
       instruction = SET_OPCODE(LSHF) | SET_DR(reg_value1) | SET_SR(reg_value2) | SET_SHF_TYPE(LSHF_TYPE) | SET_AMOUNT4(toNum(arg3));
 
       #if (DEBUG)
@@ -747,7 +1288,9 @@ run(FILE* outfile, char* Label, char* Opcode, char* arg1, char* arg2, char* arg3
     } else {
       #if (DEBUG)
       printf("Bad input: %s %s %d!\n", arg1, arg2, toNum(arg3));
+      printf("Exit code: %d\n", 1);
       #endif
+
       exit(1); // todo: idk if this is exit(1)
     }
   }
@@ -769,7 +1312,9 @@ run(FILE* outfile, char* Label, char* Opcode, char* arg1, char* arg2, char* arg3
     } else {
       #if (DEBUG)
       printf("Bad input: %s %s %d!\n", arg1, arg2, toNum(arg3));
+      printf("Exit code: %d\n", 1);
       #endif
+
       exit(1); // todo: idk if this is exit(1)
     }
   }
@@ -791,7 +1336,9 @@ run(FILE* outfile, char* Label, char* Opcode, char* arg1, char* arg2, char* arg3
     } else {
       #if (DEBUG)
       printf("Bad input: %s %s %d!\n", arg1, arg2, toNum(arg3));
+      printf("Exit code: %d\n", 1);
       #endif
+
       exit(1); // todo: idk if this is exit(1)
     }
   }
@@ -813,7 +1360,9 @@ run(FILE* outfile, char* Label, char* Opcode, char* arg1, char* arg2, char* arg3
     } else {
       #if (DEBUG)
       printf("Bad input: %s %s %d!\n", arg1, arg2, toNum(arg3));
+      printf("Exit code: %d\n", 1);
       #endif
+
       exit(1); // todo: idk if this is exit(1)
     }
   }
@@ -832,10 +1381,12 @@ run(FILE* outfile, char* Label, char* Opcode, char* arg1, char* arg2, char* arg3
       #endif
 
       fprintf(outfile, "0x%04X\n", instruction);
-    }else {
+    } else {
       #if (DEBUG)
       printf("Bad input: %s %s %d!\n", arg1, arg2, toNum(arg3));
+      printf("Exit code: %d\n", 1);
       #endif
+
       exit(1); // todo: idk if this is exit(1)
     }
   }
@@ -865,7 +1416,9 @@ run(FILE* outfile, char* Label, char* Opcode, char* arg1, char* arg2, char* arg3
       if (reg_value3 != -1) {
         instruction = SET_OPCODE(XOR) | SET_DR(reg_value1) | SET_SR1(reg_value2) | SET_IMM_OR_REG_B5(REGISTER) | SET_SR2(reg_value3);
       } else {
-        instruction = SET_OPCODE(XOR) | SET_DR(reg_value1) | SET_SR1(reg_value2) | SET_IMM_OR_REG_B5(IMMEDIATE) | SET_IMM5(toNum(arg3));
+        int16_t IMM5 = toNum(arg3);
+        CHECK_IMM5(IMM5);
+        instruction = SET_OPCODE(XOR) | SET_DR(reg_value1) | SET_SR1(reg_value2) | SET_IMM_OR_REG_B5(IMMEDIATE) | SET_IMM5(IMM5);
       }
 
       #if (DEBUG)
@@ -876,7 +1429,9 @@ run(FILE* outfile, char* Label, char* Opcode, char* arg1, char* arg2, char* arg3
     } else {
       #if (DEBUG)
       printf("Bad register input: %s %s!\n", arg1, arg2);
+      printf("Exit code: %d\n", 1);
       #endif
+
       exit(1); // todo: idk if this is exit(1)
     }
   }
@@ -899,7 +1454,9 @@ run(FILE* outfile, char* Label, char* Opcode, char* arg1, char* arg2, char* arg3
     } else {
       #if (DEBUG)
       printf("Bad register input: %s %s!\n", arg1, arg2);
+      printf("Exit code: %d\n", 1);
       #endif
+
       exit(1); // todo: idk if this is exit(1)
     }
   }
@@ -938,8 +1495,9 @@ run(FILE* outfile, char* Label, char* Opcode, char* arg1, char* arg2, char* arg3
     check_arguments(Opcode, arg3);
     check_arguments(Opcode, arg4);
 
-    // todo: lots of edge cases with negative numbers
-    instruction = toNum(arg1);
+    int16_t FILL = toNum(arg1);
+    CHECK_FILL(FILL);
+    instruction = FILL;
 
     #if (DEBUG)
     printf("0x%4X\n", instruction);
@@ -960,8 +1518,10 @@ run(FILE* outfile, char* Label, char* Opcode, char* arg1, char* arg2, char* arg3
   else {
     #if (DEBUG)
     printf("Invalid Operand Found: %s!\n", Opcode);
+    printf("Error Code: %d\n", 2);
     #endif
-    // todo: exit here?!
+
+    exit(2);
   }
 
   return NOT_FINISH;
@@ -975,7 +1535,9 @@ assembler_init(FILE** infile, FILE** outfile, char* prgName, char* iFileName, ch
       oFileName == NULL) {
     #if (DEBUG)
     printf("Missing command line argument(s)!\n");
+    printf("Error Code: %d\n", 4);
     #endif
+
     exit(4);
   }
 
@@ -985,11 +1547,20 @@ assembler_init(FILE** infile, FILE** outfile, char* prgName, char* iFileName, ch
     
   if (!(*infile)) {
     printf("Error: Cannot open file %s\n", iFileName);
+
+    #if (DEBUG)
+    printf("Error Code: %d\n", 4);
+    #endif
+
     exit(4);
   }
 
   if (!(*outfile)) {
     printf("Error: Cannot open file %s\n", oFileName);
+    #if (DEBUG)
+    printf("Error Code: %d\n", 4);
+    #endif
+
     exit(4);
   }
 
@@ -1015,57 +1586,22 @@ main(int argc, char* argv[]) {
 
   assembler_init(&infile, &outfile, prgName, iFileName, oFileName, pLabel, pOpcode, pArg1, pArg2, pArg3, pArg4);
 
-  int lRet;
+  create_all_labels(argv[1]);
+  first_pass(argv[1]);
 
-  /* Do the First Pass and check for .ORIG/.END and Labels */
-  bool orig = false;
-  bool end = false;
-  uint16_t temp_PC = 0;
-  do {
-    lRet = readAndParse(infile, pLine, pLabel, pOpcode, pArg1, pArg2, pArg3, pArg4);
+  // rewind(infile);
 
-    if (lRet != DONE && lRet != EMPTY_LINE) {
-      if (**(pLabel) != '\0') {
-        add_label(*pLabel, temp_PC);
-      }
+  // do {
+  //   lRet = readAndParse(infile, pLine, pLabel, pOpcode, pArg1, pArg2, pArg3, pArg4);
 
-      if (string_equal(*pOpcode, ".end")) {
-        end = true;
-      }
+  //   if (lRet != DONE && lRet != EMPTY_LINE) {
+  //     if (run(outfile, *pLabel, *pOpcode, *pArg1, *pArg2, *pArg3, *pArg4) == FINISH) {
+  //       break;
+  //     }
+  //     PC += 2;
+  //   }
+  // } while(lRet != DONE);
 
-      if (string_equal(*pOpcode, ".orig")) {
-        #if (DEBUG)
-        printf("Here is our PC value: 0x%x\n", toNum(*pArg1));
-        #endif
-
-        temp_PC = toNum(*pArg1);
-        orig = true;
-      } else {
-        temp_PC += 2;
-      }
-    }
-  } while(lRet != DONE);
-
-  if (!orig || !end) {
-    #if (DEBUG)
-    printf("Was not able to find a .ORIG OR .END\n");
-    #endif
-    exit(0);
-  }
-
-  rewind(infile);
-
-  do {
-    lRet = readAndParse(infile, pLine, pLabel, pOpcode, pArg1, pArg2, pArg3, pArg4);
-
-    if (lRet != DONE && lRet != EMPTY_LINE) {
-      if (run(outfile, *pLabel, *pOpcode, *pArg1, *pArg2, *pArg3, *pArg4) == FINISH) {
-        break;
-      }
-      PC += 2;
-    }
-  } while(lRet != DONE);
-
-  fclose(infile);
-  fclose(outfile);
+  // fclose(infile);
+  // fclose(outfile);
 }
