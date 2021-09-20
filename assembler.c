@@ -366,10 +366,10 @@ first_pass(char* infile) {
         if (!find_label(*pArg1)) {
           #if (DEBUG)
           printf("Found undefined label: %s\n", *pArg1);
-          printf("Error Code: %d\n", 4);
+          printf("Error Code: %d\n", 1);
           #endif
 
-          exit(4);
+          exit(1);
         }
       }
 
@@ -377,10 +377,10 @@ first_pass(char* infile) {
         if (!find_label(*pArg2)) {
           #if (DEBUG)
           printf("Found undefined label: %s\n", *pArg2);
-          printf("Error Code: %d\n", 4);
+          printf("Error Code: %d\n", 1);
           #endif
 
-          exit(4);
+          exit(1);
         }
       }
 
@@ -388,10 +388,10 @@ first_pass(char* infile) {
         if (!find_label(*pArg1)) {
           #if (DEBUG)
           printf("Found undefined label: %s\n", *pArg1);
-          printf("Error Code: %d\n", 4);
+          printf("Error Code: %d\n", 1);
           #endif
 
-          exit(4);
+          exit(1);
         }
       }
 
@@ -431,8 +431,10 @@ first_pass(char* infile) {
   if (!orig || !end) {
     #if (DEBUG)
     printf("Was not able to find a .ORIG OR .END\n");
+    printf("Exit code: 4\n");
     #endif
-    exit(0);
+
+    exit(4);
   }
 }
 
@@ -507,6 +509,7 @@ create_all_labels(char* infile) {
         /* PC value cannot be odd */
         if ((temp_PC % 2) == 1) {
           #if (DEBUG)
+          printf("PC value cannot be odd!\n");
           printf("Error Code: %d\n", 3);
           #endif
 
@@ -658,7 +661,7 @@ CHECK_PCOFFSET9(int16_t PC_OFFSET9) {
     /* PC offset is greater than the max positive value */
     #if (DEBUG)
     printf("PC_OFFSET9 %d is too big!\n", PC_OFFSET9);
-    printf("Error Code: %d\n", 3);
+    printf("Error Code: %d\n", 4);
     #endif
 
     exit(3);
@@ -666,7 +669,7 @@ CHECK_PCOFFSET9(int16_t PC_OFFSET9) {
     /* PC offset is smaller than the most negative value */
     #if (DEBUG)
     printf("PC_OFFSET9 %d is too small!\n", PC_OFFSET9);
-    printf("Error Code: %d\n", 3);
+    printf("Error Code: %d\n", 4);
     #endif
 
     exit(3);
@@ -679,7 +682,7 @@ CHECK_PCOFFSET11(int16_t PC_OFFSET11) {
     /* PC offset is greater than the max positive value */
     #if (DEBUG)
     printf("PC_OFFSET11 %d is too big!\n", PC_OFFSET11);
-    printf("Error Code: %d\n", 3);
+    printf("Error Code: %d\n", 4);
     #endif
 
     exit(3);
@@ -687,7 +690,7 @@ CHECK_PCOFFSET11(int16_t PC_OFFSET11) {
     /* PC offset is smaller than the most negative value */
     #if (DEBUG)
     printf("PC_OFFSET11 %d is too small!\n", PC_OFFSET11);
-    printf("Error Code: %d\n", 3);
+    printf("Error Code: %d\n", 4);
     #endif
 
     exit(3);
@@ -854,10 +857,10 @@ run(FILE* outfile, char* Label, char* Opcode, char* arg1, char* arg2, char* arg3
     } else {
       #if (DEBUG)
       printf("Bad register input: %s %s!\n", arg1, arg2);
-      printf("Exit code: %d\n", 1);
+      printf("Exit code: %d\n", 4);
       #endif
 
-      exit(1); // todo: idk if this is exit(1)
+      exit(4);
     }
     
   }
@@ -887,10 +890,10 @@ run(FILE* outfile, char* Label, char* Opcode, char* arg1, char* arg2, char* arg3
     } else {
       #if (DEBUG)
       printf("Bad register input: %s %s!\n", arg1, arg2);
-      printf("Exit code: %d\n", 1);
+      printf("Exit code: %d\n", 4);
       #endif
 
-      exit(1);
+      exit(4);
     }
   }
 
@@ -1130,10 +1133,10 @@ run(FILE* outfile, char* Label, char* Opcode, char* arg1, char* arg2, char* arg3
     } else {
       #if (DEBUG)
       printf("Bad register input: %s!\n", arg1);
-      printf("Exit code: %d\n", 1);
+      printf("Exit code: %d\n", 4);
       #endif
 
-      exit(1); // todo: idk if this is exit(1)
+      exit(4);
     }
   }
 
@@ -1196,10 +1199,10 @@ run(FILE* outfile, char* Label, char* Opcode, char* arg1, char* arg2, char* arg3
     } else {
       #if (DEBUG)
       printf("Bad register input: %s!\n", arg1);
-      printf("Exit code: %d\n", 1);
+      printf("Exit code: %d\n", 4);
       #endif
 
-      exit(1); // todo: idk if this is exit(1)
+      exit(4);
     }
   }
 
@@ -1458,10 +1461,10 @@ run(FILE* outfile, char* Label, char* Opcode, char* arg1, char* arg2, char* arg3
     } else {
       #if (DEBUG)
       printf("Bad register input: %s %s!\n", arg1, arg2);
-      printf("Exit code: %d\n", 1);
+      printf("Exit code: %d\n", 4);
       #endif
 
-      exit(1); // todo: idk if this is exit(1)
+      exit(4); 
     }
   }
 
@@ -1483,10 +1486,10 @@ run(FILE* outfile, char* Label, char* Opcode, char* arg1, char* arg2, char* arg3
     } else {
       #if (DEBUG)
       printf("Bad register input: %s %s!\n", arg1, arg2);
-      printf("Exit code: %d\n", 1);
+      printf("Exit code: %d\n", 4);
       #endif
 
-      exit(1); // todo: idk if this is exit(1)
+      exit(4);
     }
   }
 

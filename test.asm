@@ -1,7 +1,3 @@
-.orig x3000
-
-jsr addr
-
-addr add r0, r0, r1
-     br 9addr
-;9addr add r1, r1, r2
+.ORIG x1000
+	ADD R1, R0, 1	; 1 is an invalid operand (neither a register nor an immediate)
+	.END
