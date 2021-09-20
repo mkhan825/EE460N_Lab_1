@@ -7,11 +7,16 @@
 /*                                                                                     */
 /***************************************************************************************/
 
-#define DEBUG 1
+#define DEBUG 0
 
 enum
 {
   DONE, OK, EMPTY_LINE
+};
+
+enum run_type {
+  FINISH,
+  NOT_FINISH,
 };
 
 /* Note: MAX_LINE_LENGTH, OK, EMPTY_LINE, and DONE are defined values */
@@ -50,7 +55,7 @@ enum opcode {
   LDB = 0x2,
   LDW = 0x6,
   LEA = 0xE,
-  RTI = 0x1,
+  RTI = 0x8,
 
   LSHF = 0xD,
   RSHFL = 0xD,
@@ -85,7 +90,7 @@ enum opcode {
 #define SET_OPCODE(op) ((((uint16_t)op) & 0xf) << 12)
 
 #define SET_DR(dr) ((((uint16_t)dr) & 0x7) << 9)
-#define SET_SR(sr) ((((uint16_t)sr1) & 0x7) << 6)
+#define SET_SR(sr) ((((uint16_t)sr) & 0x7) << 6)
 #define SET_ST_SR(st_sr) ((((uint16_t)st_sr) & 0x7) << 9)
 #define SET_SR1(sr1) ((((uint16_t)sr1) & 0x7) << 6)
 #define SET_SR2(sr2) ((((uint16_t)sr2) & 0x7) << 0)
@@ -93,7 +98,7 @@ enum opcode {
 
 #define SET_IMM_OR_REG_B5(x) ((((uint16_t)x) & 0x1) << 5)
 #define SET_IMM_OR_REG_B11(x) ((((uint16_t)x) & 0x1) << 11)
-#define SET_SHF_TYPE(x) ((((uint16_t)x) & 0x2) << 4)
+#define SET_SHF_TYPE(x) ((((uint16_t)x) & 0x3) << 4)
 
 #define SET_IMM5(imm5) ((((uint16_t)imm5) & 0x1f) << 0)
 #define SET_AMOUNT4(amount4) ((((uint16_t)amount4) & 0xf) << 0)
@@ -112,6 +117,20 @@ enum opcode {
 // Magic Numbers
 #define REGISTER 0
 #define IMMEDIATE 1
+
+#define N_ON 1
+#define Z_ON 1
+#define P_ON 1
+
+#define N_OFF 0
+#define Z_OFF 0
+#define P_OFF 0
+
+#define LSHF_TYPE 0
+#define RSHFL_TYPE 1
+#define RSHFA_TYPE 3
+
+#define HALT 0xF025
 
 /***************************************************************************************/
 /*                                                                                     */

@@ -6,6 +6,10 @@
 #include <stdbool.h>
 #include "assembler.h"
 
+
+// char* opcode_string[] = {"ADD", "AND", ""};
+uint16_t PC = 0;
+
 /***************************************************************************************/
 /*                                                                                     */
 /*                             FUNCTION IMPLEMENTATIONS                                */
@@ -52,10 +56,6 @@ readAndParse(FILE* pInfile, char* pLine, char** pLabel,
   }
     
   *pOpcode = lPtr;
-  if (string_equal(*pOpcode, ".end")) {
-    printf("We found .end!\n");
-  }
-  printf("%s\n", *pOpcode);
 
   if(!(lPtr = strtok(NULL, "\t\n ,"))) {
     return(OK);
@@ -167,10 +167,11 @@ isOpcode(char* str) {
   else if(string_equal(str, "br") ||
           string_equal(str, "brp") || 
           string_equal(str, "brz") ||
+          string_equal(str, "brzp") ||
+          string_equal(str, "brn") ||
           string_equal(str, "brnp") ||
           string_equal(str, "brnz") ||
-          string_equal(str, "brnzp") ||
-          string_equal(str, "brzp")) {
+          string_equal(str, "brnzp")) {
     return true;
   }
   else if(string_equal(str, "jmp") ||
@@ -211,6 +212,12 @@ isOpcode(char* str) {
           string_equal(str, "not")){
     return true;
   }
+  else if (string_equal(str, ".orig") ||
+           string_equal(str, ".end") ||
+           string_equal(str, "halt") ||
+           string_equal(str, ".fill")) {
+    return true;
+  }
 
   /* String is not an Opcode */
   return false;
@@ -221,32 +228,63 @@ struct label g_labels[MAX_NUM_LABELS];
 void
 label_exists(char* label) {
   for (int i = 0; i < MAX_NUM_LABELS; i++) {
-    if (g_labels[i].label != NULL) {
+    if (g_labels[i].label[0] != '\0') {
       if (string_equal(g_labels[i].label, label)) {
+        #if (DEBUG)
         printf("Found a label that is already init-ed\n");
+        #endif
         exit(4);
       }
     }
   }
 }
 
-void
-add_label(char* new_label, uint16_t* PC) {
-  /* If we find a pre-existing label, then label_exists will exit(4) */
-  label_exists(new_label);
-
+struct label*
+find_label(char* label) {
   for (int i = 0; i < MAX_NUM_LABELS; i++) {
-    if (g_labels[i].label != NULL) {
-      g_labels->addr = *PC;
-      strcpy(g_labels->label, new_label);
-      break;
+    if (g_labels[i].label[0] != '\0') {
+      if (string_equal(g_labels[i].label, label)) {
+        #if (DEBUG)
+        printf("Found our label: %s\n", g_labels[i].label);
+        #endif
+        return &g_labels[i];
+      }
+    }
+  }
+
+  #if (DEBUG)
+  printf("Did not find label: %s\n", label);
+  #endif
+  exit(4);
+}
+
+void
+print_labels(void) {
+  for (int i = 0; i < MAX_NUM_LABELS; i++) {
+    if (g_labels[i].label[0] != '\0') {
+      #if (DEBUG)
+      printf("g_labels[%d]: %s, at address: 0x%x\n", i, g_labels[i].label, g_labels[i].addr);
+      #endif
     }
   }
 }
 
 void
-valid_register() {
+add_label(char* new_label, uint16_t PC) {
+  /* If we find a pre-existing label, then label_exists will exit(4) */
+  label_exists(new_label);
 
+  for (int i = 0; i < MAX_NUM_LABELS; i++) {
+    if (g_labels[i].label[0] == '\0') {
+      #if (DEBUG)
+      printf("Added g_labels[%d]: %s at address: 0x%x\n", i, new_label, PC);
+      #endif
+
+      g_labels[i].addr = PC;
+      strcpy(g_labels[i].label, new_label);
+      break;
+    }
+  }
 }
 
 void
@@ -274,12 +312,17 @@ check_register(char* reg) {
     strcpy(reg_copy, reg);
     reg_copy[0] = '#';
 
+    // rabc r101231231a ra123123123 r#123123 rx-123123 r#-12312321
     int reg_value = toNum(reg_copy);
 
     free(reg_copy);
 
     if (reg_value > 7) {
-      return -1;
+      /* Register Value is too big */
+      #if (DEBUG)
+      printf("Given register value (%d) is too big!\n", reg_value);
+      #endif
+      exit(4);
     } else {
       return reg_value;
     }
@@ -289,6 +332,16 @@ check_register(char* reg) {
 }
 
 void
+check_arguments(char* Opcode, char* argument) {
+  if (*argument != '\0') {
+    #if (DEBUG)
+    printf("Argument (%s), passed to %s should be empty\n", argument, Opcode);
+    #endif
+    exit(1);
+  }
+}
+
+enum run_type
 run(FILE* outfile, char* Label, char* Opcode, char* arg1, char* arg2, char* arg3, char* arg4) {
   uint16_t instruction = 0;
 
@@ -302,161 +355,629 @@ run(FILE* outfile, char* Label, char* Opcode, char* arg1, char* arg2, char* arg3
   // todo: convert arg1.... to nums first.... but we also need to check labels
   // todo: check if we need arg4... Is checking if an argument is NULL a good check for bad input... exit?
   if (string_equal(Opcode, "add")) {
-    if (arg4 != NULL) {
-      // todo: maybe do an exit here...
-      printf("arg4 is not NULL\n");
-      exit(1);
-    }
+    check_arguments(Opcode, arg4);
 
     int reg_value1 = check_register(arg1);
     int reg_value2 = check_register(arg2);
+
     if (!((reg_value1 < 0) || (reg_value2 < 0))) {
       /* This third argument tells us whether it could be an immediate or a register */
       /* todo: Should reg_value3 be able to be negative... */
       int reg_value3 = check_register(arg3);
-      printf("reg_3: %d\n", reg_value3);
       if (reg_value3 != -1) {
         instruction = SET_OPCODE(ADD) | SET_DR(reg_value1) | SET_SR1(reg_value2) | SET_IMM_OR_REG_B5(REGISTER) | SET_SR2(reg_value3);
       } else {
-        printf("We made it heere!! Bit_5: %d\n", SET_IMM_OR_REG_B5(1));
         instruction = SET_OPCODE(ADD) | SET_DR(reg_value1) | SET_SR1(reg_value2) | SET_IMM_OR_REG_B5(IMMEDIATE) | SET_IMM5(toNum(arg3));
-        printf("tonum: %d\n", toNum(arg3));
       }
-    }
-    printf("0x%x\n", instruction);
-    fprintf(outfile, "0x%x\n", instruction);
 
+      #if (DEBUG)
+      printf("0x%4X\n", instruction);
+      #endif
+
+      fprintf(outfile, "0x%04X\n", instruction);
+    } else {
+      #if (DEBUG)
+      printf("Bad register input: %s %s!\n", arg1, arg2);
+      #endif
+      exit(1); // todo: idk if this is exit(1)
+    }
+    
   }
 
   else if (string_equal(Opcode, "and")) {
-    if(check_register(arg3)){
-      instruction = SET_OPCODE(AND) | SET_DR(toNum(arg1)) | SET_SR1(arg2) | SET_IMM_OR_REG_B5(0) | SET_SR2(arg3);
-    } else{
-      instruction = SET_OPCODE(AND) | SET_DR(toNum(arg1)) | SET_SR1(arg2) | SET_IMM_OR_REG_B5(1) | SET_IMM5(arg3);
+    check_arguments(Opcode, arg4);
+
+    int reg_value1 = check_register(arg1);
+    int reg_value2 = check_register(arg2);
+
+    if (!((reg_value1 < 0) || (reg_value2 < 0))) {
+      int reg_value3 = check_register(arg3);
+      if(reg_value3 != -1){
+        instruction = SET_OPCODE(AND) | SET_DR(reg_value1) | SET_SR1(reg_value2) | SET_IMM_OR_REG_B5(REGISTER) | SET_SR2(reg_value3);
+      } else{
+        instruction = SET_OPCODE(AND) | SET_DR(reg_value1) | SET_SR1(reg_value2) | SET_IMM_OR_REG_B5(IMMEDIATE) | SET_IMM5(toNum(arg3));
+      }
+
+      #if (DEBUG)
+      printf("0x%4X\n", instruction);
+      #endif
+
+      fprintf(outfile, "0x%04X\n", instruction);
+    } else {
+        #if (DEBUG)
+        printf("Bad register input: %s %s!\n", arg1, arg2);
+        #endif
+        exit(1); // todo: idk if this is exit(1)
     }
   }
 
   else if(string_equal(Opcode, "br")) {
-    instruction = SET_OPCODE(BR) | SET_CC_N(0) | SET_CC_Z(0) | SET_CC_P(0);
+
+    check_arguments(Opcode, arg2);
+    check_arguments(Opcode, arg3);
+    check_arguments(Opcode, arg4);
+
+    struct label* label = find_label(arg1);
+    if (label == NULL) {
+      instruction = SET_OPCODE(BR) | SET_CC_N(N_OFF) | SET_CC_Z(Z_OFF) | SET_CC_P(P_OFF) | SET_PCOFFSET9(toNum(arg1));
+    } else {
+      instruction = SET_OPCODE(BR) | SET_CC_N(N_OFF) | SET_CC_Z(Z_OFF) | SET_CC_P(P_OFF) | SET_PCOFFSET9(label->addr - PC);
+    }
+
+    #if (DEBUG)
+    printf("0x%4X\n", instruction);
+    #endif
+
+    fprintf(outfile, "0x%04X\n", instruction);
   }
 
   else if(string_equal(Opcode, "brp")) {
-    instruction = SET_OPCODE(BR) | SET_CC_N(0) | SET_CC_Z(0) | SET_CC_P(1);
+    check_arguments(Opcode, arg2);
+    check_arguments(Opcode, arg3);
+    check_arguments(Opcode, arg4);
+
+    struct label* label = find_label(arg1);
+    if (label == NULL) {
+      instruction = SET_OPCODE(BR) | SET_CC_N(N_OFF) | SET_CC_Z(Z_OFF) | SET_CC_P(P_ON) | SET_PCOFFSET9(toNum(arg1));
+    } else {
+      instruction = SET_OPCODE(BR) | SET_CC_N(N_OFF) | SET_CC_Z(Z_OFF) | SET_CC_P(P_ON) | SET_PCOFFSET9(label->addr - PC);
+    }
+
+    #if (DEBUG)
+    printf("0x%4X\n", instruction);
+    #endif
+
+    fprintf(outfile, "0x%04X\n", instruction);
+
   }
 
   else if(string_equal(Opcode, "brz")) {
-    instruction = SET_OPCODE(BR) | SET_CC_N(0) | SET_CC_Z(1) | SET_CC_P(0);
+
+    check_arguments(Opcode, arg2);
+    check_arguments(Opcode, arg3);
+    check_arguments(Opcode, arg4);
+
+    struct label* label = find_label(arg1);
+    if (label == NULL) {
+      instruction = SET_OPCODE(BR) | SET_CC_N(N_OFF) | SET_CC_Z(Z_ON) | SET_CC_P(P_OFF) | SET_PCOFFSET9(toNum(arg1));
+    } else {
+      instruction = SET_OPCODE(BR) | SET_CC_N(N_OFF) | SET_CC_Z(Z_ON) | SET_CC_P(P_OFF) | SET_PCOFFSET9(label->addr - PC);
+    }
+
+    #if (DEBUG)
+    printf("0x%4X\n", instruction);
+    #endif
+
+    fprintf(outfile, "0x%04X\n", instruction);
+
   }
 
   else if(string_equal(Opcode, "brzp")) {
-    instruction = SET_OPCODE(BR) | SET_CC_N(0) | SET_CC_Z(1) | SET_CC_P(1);
+
+    check_arguments(Opcode, arg2);
+    check_arguments(Opcode, arg3);
+    check_arguments(Opcode, arg4);
+
+    struct label* label = find_label(arg1);
+    if (label == NULL) {
+      instruction = SET_OPCODE(BR) | SET_CC_N(N_OFF) | SET_CC_Z(Z_ON) | SET_CC_P(P_ON) | SET_PCOFFSET9(toNum(arg1));
+    } else {
+      instruction = SET_OPCODE(BR) | SET_CC_N(N_OFF) | SET_CC_Z(Z_ON) | SET_CC_P(P_ON) | SET_PCOFFSET9(label->addr - PC);
+    }
+
+    #if (DEBUG)
+    printf("0x%4X\n", instruction);
+    #endif
+
+    fprintf(outfile, "0x%04X\n", instruction);
   }
 
   else if(string_equal(Opcode, "brn")) {
-    instruction = SET_OPCODE(BR) | SET_CC_N(1) | SET_CC_Z(0) | SET_CC_P(0);
+    check_arguments(Opcode, arg2);
+    check_arguments(Opcode, arg3);
+    check_arguments(Opcode, arg4);
+
+    struct label* label = find_label(arg1);
+    if (label == NULL) {
+      instruction = SET_OPCODE(BR) | SET_CC_N(N_ON) | SET_CC_Z(Z_OFF) | SET_CC_P(P_OFF) | SET_PCOFFSET9(toNum(arg1));
+    } else {
+      instruction = SET_OPCODE(BR) | SET_CC_N(N_ON) | SET_CC_Z(Z_OFF) | SET_CC_P(P_OFF) | SET_PCOFFSET9(label->addr - PC);
+    }
+
+    #if (DEBUG)
+    printf("0x%4X\n", instruction);
+    #endif
+
+    fprintf(outfile, "0x%04X\n", instruction);
   }
 
   else if(string_equal(Opcode, "brnp")) {
-    instruction = SET_OPCODE(BR) | SET_CC_N(1) | SET_CC_Z(0) | SET_CC_P(1);
+
+    check_arguments(Opcode, arg2);
+    check_arguments(Opcode, arg3);
+    check_arguments(Opcode, arg4);
+
+    struct label* label = find_label(arg1);
+    if (label == NULL) {
+      instruction = SET_OPCODE(BR) | SET_CC_N(N_ON) | SET_CC_Z(Z_OFF) | SET_CC_P(P_ON) | SET_PCOFFSET9(toNum(arg1));
+    } else {
+      instruction = SET_OPCODE(BR) | SET_CC_N(N_ON) | SET_CC_Z(Z_OFF) | SET_CC_P(P_ON) | SET_PCOFFSET9(label->addr - PC);
+    }
+
+    #if (DEBUG)
+    printf("0x%4X\n", instruction);
+    #endif
+
+    fprintf(outfile, "0x%04X\n", instruction);
   }
 
   else if(string_equal(Opcode, "brnz")) {
-    instruction = SET_OPCODE(BR) | SET_CC_N(1) | SET_CC_Z(1) | SET_CC_P(0);
+
+    check_arguments(Opcode, arg2);
+    check_arguments(Opcode, arg3);
+    check_arguments(Opcode, arg4);
+
+    struct label* label = find_label(arg1);
+    if (label == NULL) {
+      instruction = SET_OPCODE(BR) | SET_CC_N(N_ON) | SET_CC_Z(Z_ON) | SET_CC_P(P_OFF) | SET_PCOFFSET9(toNum(arg1));
+    } else {
+      instruction = SET_OPCODE(BR) | SET_CC_N(N_ON) | SET_CC_Z(Z_ON) | SET_CC_P(P_OFF) | SET_PCOFFSET9(label->addr - PC);
+    }
+
+    #if (DEBUG)
+    printf("0x%4X\n", instruction);
+    #endif
+
+    fprintf(outfile, "0x%04X\n", instruction);
   }
 
   else if(string_equal(Opcode, "brnzp")) {
-    instruction = SET_OPCODE(BR) | SET_CC_N(1) | SET_CC_Z(1) | SET_CC_P(1);
+
+    check_arguments(Opcode, arg2);
+    check_arguments(Opcode, arg3);
+    check_arguments(Opcode, arg4);
+
+    struct label* label = find_label(arg1);
+    if (label == NULL) {
+      instruction = SET_OPCODE(BR) | SET_CC_N(N_ON) | SET_CC_Z(Z_ON) | SET_CC_P(P_ON) | SET_PCOFFSET9(toNum(arg1));
+    } else {
+      instruction = SET_OPCODE(BR) | SET_CC_N(N_ON) | SET_CC_Z(Z_ON) | SET_CC_P(P_ON) | SET_PCOFFSET9(label->addr - PC);
+    }
+
+    #if (DEBUG)
+    printf("0x%4X\n", instruction);
+    #endif
+
+    fprintf(outfile, "0x%04X\n", instruction);
   }
 
   else if(string_equal(Opcode, "jmp")) {
-    instruction = SET_OPCODE(JMP) | SET_BASE_R(toNum(arg1));
+    check_arguments(Opcode, arg2);
+    check_arguments(Opcode, arg3);
+    check_arguments(Opcode, arg4);
+
+    int reg_value1 = check_register(arg1);
+
+    if (!(reg_value1 < 0)) {
+      instruction = SET_OPCODE(JMP) | SET_BASE_R(reg_value1);
+
+      #if (DEBUG)
+      printf("0x%4X\n", instruction);
+      #endif
+
+      fprintf(outfile, "0x%04X\n", instruction);
+    } else {
+      #if (DEBUG)
+      printf("Bad register input: %s!\n", arg1);
+      #endif
+      exit(1); // todo: idk if this is exit(1)
+    }
   }
 
   else if(string_equal(Opcode, "ret")) {
+    check_arguments(Opcode, arg1);
+    check_arguments(Opcode, arg2);
+    check_arguments(Opcode, arg3);
+    check_arguments(Opcode, arg4);
+
     instruction = SET_OPCODE(RET) | SET_BASE_R(0x7);
+
+    #if (DEBUG)
+    printf("0x%4X\n", instruction);
+    #endif
+
+    fprintf(outfile, "0x%04X\n", instruction);
   }
 
   else if(string_equal(Opcode, "jsr")) {
-    instruction = SET_OPCODE(JSR) | SET_IMM_OR_REG_B11(1) | SET_PCOFFSET11(toNum(arg1));
+    check_arguments(Opcode, arg2);
+    check_arguments(Opcode, arg3);
+    check_arguments(Opcode, arg4);
+
+    struct label* label = find_label(arg1);
+    if (label == NULL) {
+      instruction = SET_OPCODE(JSR) | SET_IMM_OR_REG_B11(IMMEDIATE) | SET_PCOFFSET11(toNum(arg1));
+    } else {
+      instruction = SET_OPCODE(JSR) | SET_IMM_OR_REG_B11(IMMEDIATE) | SET_PCOFFSET11(label->addr - PC);
+    }
+
+    #if (DEBUG)
+    printf("0x%4X\n", instruction);
+    #endif
+
+    fprintf(outfile, "0x%04X\n", instruction);
   }
 
   else if(string_equal(Opcode, "jsrr")) {
-    instruction = SET_OPCODE(JSRR) | SET_IMM_OR_REG_B11(0) | SET_BASE_R(toNum(arg1));
+    check_arguments(Opcode, arg2);
+    check_arguments(Opcode, arg3);
+    check_arguments(Opcode, arg4);
+
+    int reg_value1 = check_register(arg1);
+
+    if (!(reg_value1 < 0)) {
+      instruction = SET_OPCODE(JSRR) | SET_IMM_OR_REG_B11(REGISTER) | SET_BASE_R(reg_value1);
+
+      #if (DEBUG)
+      printf("0x%4X\n", instruction);
+      #endif
+
+      fprintf(outfile, "0x%04X\n", instruction);
+    } else {
+      #if (DEBUG)
+      printf("Bad register input: %s!\n", arg1);
+      #endif
+      exit(1); // todo: idk if this is exit(1)
+    }
   }
 
-  else if(string_equal(Opcode, "ldb")){
-    instruction = SET_OPCODE(LDB) | SET_DR(toNum(arg1)) | SET_BASE_R(arg2) | SET_BOFFSET6(arg3);
+  else if(string_equal(Opcode, "ldb")) {
+    check_arguments(Opcode, arg4);
+
+    int reg_value1 = check_register(arg1);
+    int reg_value2 = check_register(arg2);
+
+    if (!((reg_value1 < 0) || (reg_value2 < 0))) {
+      instruction = SET_OPCODE(LDB) | SET_DR(reg_value1) | SET_BASE_R(reg_value2) | SET_BOFFSET6(toNum(arg3));
+
+      #if (DEBUG)
+      printf("0x%4X\n", instruction);
+      #endif
+
+      fprintf(outfile, "0x%04X\n", instruction);
+    } else {
+      #if (DEBUG)
+      printf("Bad input: %s %s %d!\n", arg1, arg2, toNum(arg3));
+      #endif
+      exit(1); // todo: idk if this is exit(1)
+    }
   }
 
-  else if(string_equal(Opcode, "ldw")){
-    instruction = SET_OPCODE(LDW) | SET_DR(toNum(arg1)) | SET_BASE_R(arg2) | SET_OFFSET6(arg3);
+  else if(string_equal(Opcode, "ldw")) {
+    check_arguments(Opcode, arg4);
+
+    int reg_value1 = check_register(arg1);
+    int reg_value2 = check_register(arg2);
+
+    if (!((reg_value1 < 0) || (reg_value2 < 0))) {
+      instruction = SET_OPCODE(LDW) | SET_DR(reg_value1) | SET_BASE_R(reg_value2) | SET_OFFSET6(toNum(arg3));
+
+      #if (DEBUG)
+      printf("0x%4X\n", instruction);
+      #endif
+
+      fprintf(outfile, "0x%04X\n", instruction);
+    } else {
+      #if (DEBUG)
+      printf("Bad input: %s %s %d!\n", arg1, arg2, toNum(arg3));
+      #endif
+      exit(1); // todo: idk if this is exit(1)
+    }
   }
 
-  else if(string_equal(Opcode, "lea")){
-    instruction = SET_OPCODE(LEA) | SET_DR(toNum(arg1)) | SET_PCOFFSET9(arg2);
+  else if(string_equal(Opcode, "lea")) {
+    check_arguments(Opcode, arg3);
+    check_arguments(Opcode, arg4);
+
+    int reg_value1 = check_register(arg1);
+    if (!(reg_value1 < 0)) {
+      struct label* label = find_label(arg2);
+      if (label == NULL) {
+        instruction = SET_OPCODE(LEA) | SET_DR(reg_value1) | SET_PCOFFSET9(toNum(arg2));
+      } else {
+        instruction = SET_OPCODE(LEA) | SET_DR(reg_value1) | SET_PCOFFSET9(label->addr - PC);
+      }
+      #if (DEBUG)
+      printf("0x%4X\n", instruction);
+      #endif
+
+      fprintf(outfile, "0x%04X\n", instruction);
+    }
   }
 
-  else if(string_equal(Opcode, "rti")){
+  else if(string_equal(Opcode, "rti")) {
+    check_arguments(Opcode, arg1);
+    check_arguments(Opcode, arg2);
+    check_arguments(Opcode, arg3);
+    check_arguments(Opcode, arg4);
+
     instruction = SET_OPCODE(RTI);
+
+    #if (DEBUG)
+    printf("0x%4X\n", instruction);
+    #endif
+
+    fprintf(outfile, "0x%04X\n", instruction);
   }
 
-  else if(string_equal(Opcode, "lshf") {
-    instruction = SET_OPCODE(LSHF) | SET_DR(toNum(arg1)) | SET_SR(arg2) | SET_SHF_TYPE(0) | SET_AMOUNT4(arg3);
+  else if(string_equal(Opcode, "lshf")) {
+    check_arguments(Opcode, arg4);
+
+    int reg_value1 = check_register(arg1);
+    int reg_value2 = check_register(arg2);
+
+    if (!((reg_value1 < 0) || (reg_value2 < 0))) {
+      instruction = SET_OPCODE(LSHF) | SET_DR(reg_value1) | SET_SR(reg_value2) | SET_SHF_TYPE(LSHF_TYPE) | SET_AMOUNT4(toNum(arg3));
+
+      #if (DEBUG)
+      printf("0x%4X\n", instruction);
+      #endif
+
+      fprintf(outfile, "0x%04X\n", instruction);
+    } else {
+      #if (DEBUG)
+      printf("Bad input: %s %s %d!\n", arg1, arg2, toNum(arg3));
+      #endif
+      exit(1); // todo: idk if this is exit(1)
+    }
   }
 
-  else if(string_equal(Opcode, "rshfl") {
-    instruction = SET_OPCODE(RSHFL) | SET_DR(toNum(arg1)) | SET_SR(arg2) | SET_SHF_TYPE(1) | SET_AMOUNT4(arg3);
+  else if(string_equal(Opcode, "rshfl")) {
+    check_arguments(Opcode, arg4);
+
+    int reg_value1 = check_register(arg1);
+    int reg_value2 = check_register(arg2);
+
+    if (!((reg_value1 < 0) || (reg_value2 < 0))) {
+      instruction = SET_OPCODE(RSHFL) | SET_DR(reg_value1) | SET_SR(reg_value2) | SET_SHF_TYPE(RSHFL_TYPE) | SET_AMOUNT4(toNum(arg3));
+
+      #if (DEBUG)
+      printf("0x%4X\n", instruction);
+      #endif
+
+      fprintf(outfile, "0x%04X\n", instruction);
+    } else {
+      #if (DEBUG)
+      printf("Bad input: %s %s %d!\n", arg1, arg2, toNum(arg3));
+      #endif
+      exit(1); // todo: idk if this is exit(1)
+    }
   }
 
-  else if(string_equal(Opcode, "rshfa") {
-    instruction = SET_OPCODE(RSHFA) | SET_DR(toNum(arg1)) | SET_SR(arg2) | SET_SHF_TYPE(3) | SET_AMOUNT4(arg3);
+  else if(string_equal(Opcode, "rshfa")) {
+    check_arguments(Opcode, arg4);
+    
+    int reg_value1 = check_register(arg1);
+    int reg_value2 = check_register(arg2);
+
+    if (!((reg_value1 < 0) || (reg_value2 < 0))) {
+      instruction = SET_OPCODE(RSHFA) | SET_DR(reg_value1) | SET_SR(reg_value2) | SET_SHF_TYPE(RSHFA_TYPE) | SET_AMOUNT4(toNum(arg3));
+
+      #if (DEBUG)
+      printf("0x%4X\n", instruction);
+      #endif
+
+      fprintf(outfile, "0x%04X\n", instruction);
+    } else {
+      #if (DEBUG)
+      printf("Bad input: %s %s %d!\n", arg1, arg2, toNum(arg3));
+      #endif
+      exit(1); // todo: idk if this is exit(1)
+    }
   }
 
-  else if(string_equal(Opcode, "stb")){
-    instruction = SET_OPCODE(STB) | SET_ST_SR(toNum(arg1)) | SET_BASE_R(arg2) | SET_BOFFSET6(arg3);
+  else if(string_equal(Opcode, "stb")) {
+    check_arguments(Opcode, arg4);
+
+    int reg_value1 = check_register(arg1);
+    int reg_value2 = check_register(arg2);
+
+    if (!((reg_value1 < 0) || (reg_value2 < 0))) {
+      instruction = SET_OPCODE(STB) | SET_ST_SR(reg_value1) | SET_BASE_R(reg_value2)| SET_BOFFSET6(toNum(arg3));
+
+      #if (DEBUG)
+      printf("0x%4X\n", instruction);
+      #endif
+
+      fprintf(outfile, "0x%04X\n", instruction);
+    } else {
+      #if (DEBUG)
+      printf("Bad input: %s %s %d!\n", arg1, arg2, toNum(arg3));
+      #endif
+      exit(1); // todo: idk if this is exit(1)
+    }
   }
 
-  else if(string_equal(Opcode, "stw")){
-    instruction = SET_OPCODE(STW) | SET_ST_SR(toNum(arg1)) | SET_BASE_R(arg2) | SET_OFFSET6(arg3);
+  else if(string_equal(Opcode, "stw")) {
+    check_arguments(Opcode, arg4);
+
+    int reg_value1 = check_register(arg1);
+    int reg_value2 = check_register(arg2);
+
+    if (!((reg_value1 < 0) || (reg_value2 < 0))) {
+      instruction = SET_OPCODE(STW) | SET_ST_SR(reg_value1) | SET_BASE_R(reg_value2) | SET_OFFSET6(toNum(arg3));
+
+      #if (DEBUG)
+      printf("0x%4X\n", instruction);
+      #endif
+
+      fprintf(outfile, "0x%04X\n", instruction);
+    }else {
+      #if (DEBUG)
+      printf("Bad input: %s %s %d!\n", arg1, arg2, toNum(arg3));
+      #endif
+      exit(1); // todo: idk if this is exit(1)
+    }
   }
 
-  else if(string_equal(Opcode, "trap")){
+  else if(string_equal(Opcode, "trap")) {
+    check_arguments(Opcode, arg2);
+    check_arguments(Opcode, arg3);
+    check_arguments(Opcode, arg4);
+
     instruction = SET_OPCODE(TRAP) | SET_TRAPVECT8(toNum(arg1));
+
+    #if (DEBUG)
+    printf("0x%4X\n", instruction);
+    #endif
+
+    fprintf(outfile, "0x%04X\n", instruction);
   }
 
   else if(string_equal(Opcode, "xor")) {
-    if(check_register(arg3)){
-      instruction = SET_OPCODE(XOR) | SET_DR(toNum(arg1)) | SET_SR1(arg2) | SET_IMM_OR_REG_B5(0) | SET_SR2(arg3);
-    } else{
-      instruction = SET_OPCODE(XOR) | SET_DR(toNum(arg1)) | SET_SR1(arg2) | SET_IMM_OR_REG_B5(1) | SET_IMM5(arg3);
+    check_arguments(Opcode, arg4);
+
+    int reg_value1 = check_register(arg1);
+    int reg_value2 = check_register(arg2);
+
+    if (!((reg_value1 < 0) || (reg_value2 < 0))) {
+      int reg_value3 = check_register(arg3);
+      if (reg_value3 != -1) {
+        instruction = SET_OPCODE(XOR) | SET_DR(reg_value1) | SET_SR1(reg_value2) | SET_IMM_OR_REG_B5(REGISTER) | SET_SR2(reg_value3);
+      } else {
+        instruction = SET_OPCODE(XOR) | SET_DR(reg_value1) | SET_SR1(reg_value2) | SET_IMM_OR_REG_B5(IMMEDIATE) | SET_IMM5(toNum(arg3));
+      }
+
+      #if (DEBUG)
+      printf("0x%4X\n", instruction);
+      #endif
+
+      fprintf(outfile, "0x%04X\n", instruction);
+    } else {
+      #if (DEBUG)
+      printf("Bad register input: %s %s!\n", arg1, arg2);
+      #endif
+      exit(1); // todo: idk if this is exit(1)
     }
   }
 
   else if(string_equal(Opcode, "not")) {
-    instruction = SET_OPCODE(NOT) | SET_DR(toNum(arg1)) | SET_SR1(arg2) | SET_IMM_OR_REG_B5(1) | SET_SR2(0x1f);
+    check_arguments(Opcode, arg3);
+    check_arguments(Opcode, arg4);
+
+    int reg_value1 = check_register(arg1);
+    int reg_value2 = check_register(arg2);
+
+    if (!((reg_value1 < 0) || (reg_value2 < 0))) {
+      instruction = SET_OPCODE(NOT) | SET_DR(reg_value1) | SET_SR1(reg_value2) | SET_IMM_OR_REG_B5(IMMEDIATE) | SET_IMM5(0x1f);
+
+      #if (DEBUG)
+      printf("0x%4X\n", instruction);
+      #endif
+
+      fprintf(outfile, "0x%04X\n", instruction);
+    } else {
+      #if (DEBUG)
+      printf("Bad register input: %s %s!\n", arg1, arg2);
+      #endif
+      exit(1); // todo: idk if this is exit(1)
+    }
+  }
+
+  else if(string_equal(Opcode, ".orig")) {
+    check_arguments(Opcode, arg2);
+    check_arguments(Opcode, arg3);
+    check_arguments(Opcode, arg4);
+
+    instruction = toNum(arg1);
+
+    #if (DEBUG)
+    printf("0x%4X\n", instruction);
+    #endif
+
+    fprintf(outfile, "0x%04X\n", instruction);
+  }
+
+  else if(string_equal(Opcode, "halt")) {
+    check_arguments(Opcode, arg1);
+    check_arguments(Opcode, arg2);
+    check_arguments(Opcode, arg3);
+    check_arguments(Opcode, arg4);
+
+    instruction = HALT;
+    
+    #if (DEBUG)
+    printf("0x%4X\n", instruction);
+    #endif
+
+    fprintf(outfile, "0x%04X\n", instruction);
+  }
+
+  else if(string_equal(Opcode, ".fill")) {
+    check_arguments(Opcode, arg2);
+    check_arguments(Opcode, arg3);
+    check_arguments(Opcode, arg4);
+
+    // todo: lots of edge cases with negative numbers
+    instruction = toNum(arg1);
+
+    #if (DEBUG)
+    printf("0x%4X\n", instruction);
+    #endif
+
+    fprintf(outfile, "0x%04X\n", instruction);
+  }
+
+  else if(string_equal(Opcode, ".end")) {
+    check_arguments(Opcode, arg1);
+    check_arguments(Opcode, arg2);
+    check_arguments(Opcode, arg3);
+    check_arguments(Opcode, arg4);
+
+    return FINISH;
   }
 
   else {
-    printf("Invalid Operand!\n");
+    #if (DEBUG)
+    printf("Invalid Operand Found: %s!\n", Opcode);
+    #endif
     // todo: exit here?!
   }
+
+  return NOT_FINISH;
 }
 
 void
 assembler_init(FILE** infile, FILE** outfile, char* prgName, char* iFileName, char* oFileName,
-               char** pLine, char*** pLabel, ) {
+               char** pLabel, char** pOpcode, char** pArg1, char** pArg2, char** pArg3, char** pArg4) {
   if (prgName == NULL ||
       iFileName == NULL ||
       oFileName == NULL) {
+    #if (DEBUG)
     printf("Missing command line argument(s)!\n");
+    #endif
     exit(4);
   }
-
-  #if (DEBUG)
-  printf("program name = '%s'\n", prgName);
-  printf("input file name = '%s'\n", iFileName);
-  printf("output file name = '%s'\n", oFileName);
-  #endif
 
   /* open the source file */
   *infile = fopen(iFileName, "r");
@@ -492,29 +1013,36 @@ main(int argc, char* argv[]) {
   char* pArg3[MAX_LINE_LENGTH + 1];
   char* pArg4[MAX_LINE_LENGTH + 1];
 
-  assembler_init(&infile, &outfile, prgName, iFileName, oFileName, &pLine, &pLabel, &pOpcode, &pArg1, &pArg2, &pArg3, &pArg4);
-
-  //maybe we change tonum function
-  // printf("-1 toNum: %d\n", toNum("x-1"));
+  assembler_init(&infile, &outfile, prgName, iFileName, oFileName, pLabel, pOpcode, pArg1, pArg2, pArg3, pArg4);
 
   int lRet;
 
   /* Do the First Pass and check for .ORIG/.END and Labels */
   bool orig = false;
   bool end = false;
+  uint16_t temp_PC = 0;
   do {
     lRet = readAndParse(infile, pLine, pLabel, pOpcode, pArg1, pArg2, pArg3, pArg4);
 
     if (lRet != DONE && lRet != EMPTY_LINE) {
-      // do stuff and write to out file
-      if (string_equal(*pOpcode, ".orig")) {
-        orig = true;
+      if (**(pLabel) != '\0') {
+        add_label(*pLabel, temp_PC);
       }
+
       if (string_equal(*pOpcode, ".end")) {
-        printf("We got into this if!\n");
         end = true;
       }
-      // printf("%s\n", *pOpcode);
+
+      if (string_equal(*pOpcode, ".orig")) {
+        #if (DEBUG)
+        printf("Here is our PC value: 0x%x\n", toNum(*pArg1));
+        #endif
+
+        temp_PC = toNum(*pArg1);
+        orig = true;
+      } else {
+        temp_PC += 2;
+      }
     }
   } while(lRet != DONE);
 
@@ -522,7 +1050,7 @@ main(int argc, char* argv[]) {
     #if (DEBUG)
     printf("Was not able to find a .ORIG OR .END\n");
     #endif
-    // exit(0); // todo: figure out why it can't detect .end...
+    exit(0);
   }
 
   rewind(infile);
@@ -531,8 +1059,10 @@ main(int argc, char* argv[]) {
     lRet = readAndParse(infile, pLine, pLabel, pOpcode, pArg1, pArg2, pArg3, pArg4);
 
     if (lRet != DONE && lRet != EMPTY_LINE) {
-      // do stuff and write to out file
-      run(outfile, *pLabel, *pOpcode, *pArg1, *pArg2, *pArg3, *pArg4);
+      if (run(outfile, *pLabel, *pOpcode, *pArg1, *pArg2, *pArg3, *pArg4) == FINISH) {
+        break;
+      }
+      PC += 2;
     }
   } while(lRet != DONE);
 
