@@ -1,0 +1,4 @@
+.orig x3000
+HALT R3
+.end
+

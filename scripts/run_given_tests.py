@@ -1,6 +1,6 @@
 import os
 
-os.system("gcc -o ../assemble ../assembler.c")
+os.system("gcc -std=c99 -o ../assemble ../assembler.c")
 
 os.system("../assemble ../tests/inv_constant.asm ./output/inv_constant.obj")
 print("Expected Error code 3\n")

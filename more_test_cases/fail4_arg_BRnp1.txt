@@ -1,0 +1,4 @@
+.ORIG x3000
+BRnp label label
+label ADD R0, R0, #0
+.END

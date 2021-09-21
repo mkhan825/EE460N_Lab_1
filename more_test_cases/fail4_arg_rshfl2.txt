@@ -1,0 +1,3 @@
+.ORIG x3000
+rshfl r0, r1, #0, #0
+.END

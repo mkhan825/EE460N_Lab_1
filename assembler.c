@@ -20,7 +20,7 @@
 /*                                                                                     */
 /***************************************************************************************/
 
-#define DEBUG 0
+#define DEBUG 1
 #define TEST 0
 
 enum
@@ -171,6 +171,9 @@ add_label(char* new_label, uint16_t current_PC);
 
 enum run_type
 run(FILE* outfile, uint16_t* PC, char* Label, char* Opcode, char* arg1, char* arg2, char* arg3, char* arg4);
+
+int
+check_register(char* reg);
 
 // char* opcode_string[] = {"ADD", "AND", ""};
 uint16_t PC = 0;
@@ -538,10 +541,29 @@ first_pass(char* infile) {
 
     if (lRet != DONE && lRet != EMPTY_LINE) {
       if (string_equal(*pOpcode, ".end")) {
+        /* If there is a label next to end */
+        if (*pLabel[0] != '\0') {
+          #if (DEBUG)
+          printf("There is a label (%s) next to .end\n", *pLabel);
+          printf("Exit code: 4\n");
+          #endif
+
+          exit(4);
+        }
+
         end = true;
       }
 
       if (string_equal(*pOpcode, ".orig")) {
+        /* If there is a label next to orig */
+        if (*pLabel[0] != '\0') {
+          #if (DEBUG)
+          printf("There is a label (%s) next to .orig\n", *pLabel);
+          printf("Exit code: 4\n");
+          #endif
+
+          exit(4);
+        }
         /* PC value cannot be negative */
         if (pArg1[0][1] == '-') {
           #if (TEST || DEBUG)
@@ -801,8 +823,18 @@ create_all_labels(char* infile) {
 
       if (orig && !(end)) {
         if (**(pLabel) != '\0') {
-          check_valid_label(*pLabel);
-          add_label(*pLabel, temp_PC);
+          if (*pOpcode[0] != '\0') {
+            check_valid_label(*pLabel);
+            add_label(*pLabel, temp_PC);
+          } else {
+            // todo: not sure about
+            // #if (TEST || DEBUG)
+            // printf("Labels must be associated with Opcodes!\n");
+            // printf("Error Code: %d\n", 4);
+            // #endif
+
+            // exit(4);
+          }
         }
       }
 
@@ -882,6 +914,33 @@ check_valid_label(char* label) {
       string_equal(label, "puts")) {
     #if (TEST || DEBUG)
     printf("Trap instructions cannot be labels: %s\n", label);
+    printf("Error Code: %d\n", 4);
+    #endif
+
+    exit(4);
+  }
+
+  if (isOpcode(label)) {
+    #if (TEST || DEBUG)
+    printf("Opcodes cannot be labels: %s\n", label);
+    printf("Error Code: %d\n", 4);
+    #endif
+
+    exit(4);
+  }
+
+  if (check_register(label) != -1) {
+    #if (TEST || DEBUG)
+    printf("Labels cannot be registers: %s\n", label);
+    printf("Error Code: %d\n", 4);
+    #endif
+
+    exit(4);
+  }
+
+  if (strlen(label) > 20) {
+    #if (TEST || DEBUG)
+    printf("Labels cannot be longer than 20 chars: %s\n", label);
     printf("Error Code: %d\n", 4);
     #endif
 
@@ -1567,7 +1626,7 @@ run(FILE* outfile, uint16_t* PC, char* Label, char* Opcode, char* arg1, char* ar
     } else {
       #if (TEST || DEBUG)
       printf("Bad input: %s %s %d!\n", arg1, arg2, toNum(arg3));
-      printf("Exit code: %d\n", 1);
+      printf("Exit code: %d\n", 4);
       #endif
 
       exit(4);
@@ -1641,7 +1700,7 @@ run(FILE* outfile, uint16_t* PC, char* Label, char* Opcode, char* arg1, char* ar
     } else {
       #if (TEST || DEBUG)
       printf("Bad input: %s %s %d!\n", arg1, arg2, toNum(arg3));
-      printf("Exit code: %d\n", 1);
+      printf("Exit code: %d\n", 4);
       #endif
 
       exit(4);
@@ -1667,7 +1726,7 @@ run(FILE* outfile, uint16_t* PC, char* Label, char* Opcode, char* arg1, char* ar
     } else {
       #if (TEST || DEBUG)
       printf("Bad input: %s %s %d!\n", arg1, arg2, toNum(arg3));
-      printf("Exit code: %d\n", 1);
+      printf("Exit code: %d\n", 4);
       #endif
 
       exit(4);
@@ -1693,7 +1752,7 @@ run(FILE* outfile, uint16_t* PC, char* Label, char* Opcode, char* arg1, char* ar
     } else {
       #if (TEST || DEBUG)
       printf("Bad input: %s %s %d!\n", arg1, arg2, toNum(arg3));
-      printf("Exit code: %d\n", 1);
+      printf("Exit code: %d\n", 4);
       #endif
 
       exit(4);
@@ -1717,7 +1776,7 @@ run(FILE* outfile, uint16_t* PC, char* Label, char* Opcode, char* arg1, char* ar
     } else {
       #if (TEST || DEBUG)
       printf("Bad input: %s %s %d!\n", arg1, arg2, toNum(arg3));
-      printf("Exit code: %d\n", 1);
+      printf("Exit code: %d\n", 4);
       #endif
 
       exit(4);
@@ -1741,7 +1800,7 @@ run(FILE* outfile, uint16_t* PC, char* Label, char* Opcode, char* arg1, char* ar
     } else {
       #if (TEST || DEBUG)
       printf("Bad input: %s %s %d!\n", arg1, arg2, toNum(arg3));
-      printf("Exit code: %d\n", 1);
+      printf("Exit code: %d\n", 4);
       #endif
 
       exit(4);
@@ -1881,6 +1940,10 @@ run(FILE* outfile, uint16_t* PC, char* Label, char* Opcode, char* arg1, char* ar
     check_arguments(Opcode, arg3);
     check_arguments(Opcode, arg4);
 
+    #if (DEBUG)
+    printf("0x%4X\n", instruction);
+    #endif
+
     fprintf(outfile, "0x%04X\n", 0x0000);
   }
 
@@ -1895,7 +1958,7 @@ run(FILE* outfile, uint16_t* PC, char* Label, char* Opcode, char* arg1, char* ar
 
   else {
     #if (TEST || DEBUG)
-    printf("Invalid Operand Found: %s!\n", Opcode);
+    printf("Invalid Opcode Found: %s!\n", Opcode);
     printf("Error Code: %d\n", 2);
     #endif
 

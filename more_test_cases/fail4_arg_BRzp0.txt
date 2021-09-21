@@ -1,0 +1,4 @@
+.ORIG x3000
+BRzp
+label ADD R0, R0, #0
+.END

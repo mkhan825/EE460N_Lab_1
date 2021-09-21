@@ -1,0 +1,4 @@
+.ORIG x3000
+not R0
+ add r0, r0, #0
+.END

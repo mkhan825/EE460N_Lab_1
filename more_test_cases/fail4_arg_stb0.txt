@@ -1,0 +1,3 @@
+.ORIG x3000
+stb r0, r1, r2
+.END

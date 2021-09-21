@@ -1,0 +1,3 @@
+.orig x3000
+stw R0, R8, #4
+.end

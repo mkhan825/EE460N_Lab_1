@@ -10,6 +10,6 @@ file1.write("BR A\n")
 file1.write(".END")
 file1.close()
 
-os.system("gcc -o ../assemble ../assembler.c")
+os.system("gcc -std=c99 -o ../assemble ../assembler.c")
 os.system("../assemble ../tests/label_far_top.asm ./output/label_far_top.obj")
 print("Expected Error Code: 4")

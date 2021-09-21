@@ -10,7 +10,7 @@
       "type": "cppdbg",
       "request": "launch",
       "program": "${workspaceFolder}/assemble",
-      "args": ["test.asm", "output.obj"],
+      "args": ["more_test_cases/fail0_bad_label.txt", "output.obj"],
       "stopAtEntry": false,
       "cwd": "${fileDirname}",
       "environment": [],

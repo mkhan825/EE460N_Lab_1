@@ -1,0 +1,3 @@
+.ORIG x3000
+trap R0
+.END

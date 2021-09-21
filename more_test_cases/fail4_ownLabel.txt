@@ -1,0 +1,4 @@
+.orig x3000
+fef
+ADD R1, R1, R0
+.end

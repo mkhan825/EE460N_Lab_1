@@ -7,7 +7,7 @@
       "label": "gcc build an active file",
       "type": "shell",
       "command": "/usr/bin/gcc",
-      "args": ["-g", "${fileDirname}/assembler.c", "-o", "${fileDirname}/assemble"],
+      "args": ["-std=c99", "-g", "${fileDirname}/assembler.c", "-o", "${fileDirname}/assemble"],
       "options": {
         "cwd": "/usr/bin"
       },

@@ -10,6 +10,6 @@ file1.write("A ADD R1, R1, R1\n")
 file1.write(".END")
 file1.close()
 
-os.system("gcc -o ../assemble ../assembler.c")
+os.system("gcc -std=c99 -o ../assemble ../assembler.c")
 os.system("../assemble ../tests/label_far_bot.asm ./output/label_far_bot.obj")
 print("Expected Error Code: 4")

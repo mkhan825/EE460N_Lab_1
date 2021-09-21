@@ -1,0 +1,4 @@
+.origg x3000
+HALT
+.end
+

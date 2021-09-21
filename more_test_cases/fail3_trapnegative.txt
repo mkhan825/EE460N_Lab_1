@@ -1,0 +1,3 @@
+.ORIG x3000
+trap x-25
+.END
