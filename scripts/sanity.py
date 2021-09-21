@@ -82,7 +82,7 @@ os.system("../assemble input/"+test+"-py.asm output/"+test+"-c.obj")
 
 file2 = open("output/"+test+"-py.obj", "w")
 file2.write("0x3000\n")
-file2.write("0x0FFE\n")
+file2.write("0x0FFF\n")
 file2.close()
 
 output1 = open("output/"+test+"-c.obj", "r")
@@ -104,7 +104,7 @@ os.system("../assemble input/"+test+"-py.asm output/"+test+"-c.obj")
 
 file2 = open("output/"+test+"-py.obj", "w")
 file2.write("0x3000\n")
-file2.write("0x03FE\n")
+file2.write("0x03FF\n")
 file2.close()
 
 output1 = open("output/"+test+"-c.obj", "r")
@@ -126,7 +126,7 @@ os.system("../assemble input/"+test+"-py.asm output/"+test+"-c.obj")
 
 file2 = open("output/"+test+"-py.obj", "w")
 file2.write("0x3000\n")
-file2.write("0x05FE\n")
+file2.write("0x05FF\n")
 file2.close()
 
 output1 = open("output/"+test+"-c.obj", "r")
@@ -148,7 +148,7 @@ os.system("../assemble input/"+test+"-py.asm output/"+test+"-c.obj")
 
 file2 = open("output/"+test+"-py.obj", "w")
 file2.write("0x3000\n")
-file2.write("0x07FE\n")
+file2.write("0x07FF\n")
 file2.close()
 
 output1 = open("output/"+test+"-c.obj", "r")
@@ -170,7 +170,7 @@ os.system("../assemble input/"+test+"-py.asm output/"+test+"-c.obj")
 
 file2 = open("output/"+test+"-py.obj", "w")
 file2.write("0x3000\n")
-file2.write("0x09FE\n")
+file2.write("0x09FF\n")
 file2.close()
 
 output1 = open("output/"+test+"-c.obj", "r")
@@ -192,7 +192,7 @@ os.system("../assemble input/"+test+"-py.asm output/"+test+"-c.obj")
 
 file2 = open("output/"+test+"-py.obj", "w")
 file2.write("0x3000\n")
-file2.write("0x0BFE\n")
+file2.write("0x0BFF\n")
 file2.close()
 
 output1 = open("output/"+test+"-c.obj", "r")
@@ -214,7 +214,7 @@ os.system("../assemble input/"+test+"-py.asm output/"+test+"-c.obj")
 
 file2 = open("output/"+test+"-py.obj", "w")
 file2.write("0x3000\n")
-file2.write("0x0DFE\n")
+file2.write("0x0DFF\n")
 file2.close()
 
 output1 = open("output/"+test+"-c.obj", "r")
@@ -236,7 +236,7 @@ os.system("../assemble input/"+test+"-py.asm output/"+test+"-c.obj")
 
 file2 = open("output/"+test+"-py.obj", "w")
 file2.write("0x3000\n")
-file2.write("0x0FFE\n")
+file2.write("0x0FFF\n")
 file2.close()
 
 output1 = open("output/"+test+"-c.obj", "r")
@@ -302,7 +302,7 @@ os.system("../assemble input/"+test+"-py.asm output/"+test+"-c.obj")
 
 file2 = open("output/"+test+"-py.obj", "w")
 file2.write("0x3000\n")
-file2.write("0x4FFE\n")
+file2.write("0x4FFF\n")
 file2.close()
 
 output1 = open("output/"+test+"-c.obj", "r")
@@ -390,7 +390,7 @@ os.system("../assemble input/"+test+"-py.asm output/"+test+"-c.obj")
 
 file2 = open("output/"+test+"-py.obj", "w")
 file2.write("0x3000\n")
-file2.write("0xE3FE\n")
+file2.write("0xE3FF\n")
 file2.close()
 
 output1 = open("output/"+test+"-c.obj", "r")
@@ -596,4 +596,4 @@ output2 = open("output/"+test+"-py.obj", "r")
 
 files_equal(test, output1, output2)
 
-os.system("rm input/* output/*")
+# os.system("rm input/* output/*")

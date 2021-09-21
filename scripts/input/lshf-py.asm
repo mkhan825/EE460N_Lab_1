@@ -1,0 +1,3 @@
+.ORIG x3000
+LSHF R1, R2, #7
+.END

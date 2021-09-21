@@ -1,0 +1,3 @@
+.ORIG x3000
+A  BRNZP A
+.END

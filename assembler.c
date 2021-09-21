@@ -209,7 +209,6 @@ toNum(char* pStr) {
 
 bool
 isOpcode(char* str) {
-  //todo: isOpcode
   if (string_equal(str, "add")) {
     return true;
   } else if (string_equal(str, "and")) {
@@ -267,6 +266,9 @@ isOpcode(char* str) {
            string_equal(str, ".end") ||
            string_equal(str, "halt") ||
            string_equal(str, ".fill")) {
+    return true;
+  }
+  else if (string_equal(str, "nop")) {
     return true;
   }
 
@@ -387,76 +389,6 @@ first_pass(char* infile) {
     lRet = readAndParse(input, pLine, pLabel, pOpcode, pArg1, pArg2, pArg3, pArg4);
 
     if (lRet != DONE && lRet != EMPTY_LINE) {
-      if (string_equal(*pOpcode, "br") ||
-        string_equal(*pOpcode, "brp") ||
-        string_equal(*pOpcode, "brz") ||
-        string_equal(*pOpcode, "brzp") ||
-        string_equal(*pOpcode, "brn") ||
-        string_equal(*pOpcode, "brnp") ||
-        string_equal(*pOpcode, "brnz") ||
-        string_equal(*pOpcode, "brnzp")) {
-        if (!find_label(*pArg1)) {
-          if (pArg1[0][0] == 'x' ||
-              pArg1[0][0] == '#') {
-            #if (DEBUG)
-            printf("Found undefined label: %s\n", *pArg1);
-            printf("Error Code: %d\n", 4);
-            #endif
-
-            exit(4);
-          }
-
-          #if (DEBUG)
-          printf("Found undefined label: %s\n", *pArg1);
-          printf("Error Code: %d\n", 1);
-          #endif
-
-          exit(1);
-        }
-      }
-
-      if (string_equal(*pOpcode, "lea")) {
-        if (!find_label(*pArg2)) {
-          if (pArg2[0][0] == 'x' ||
-              pArg2[0][0] == '#') {
-            #if (DEBUG)
-            printf("Found undefined label: %s\n", *pArg1);
-            printf("Error Code: %d\n", 4);
-            #endif
-
-            exit(4);
-          }
-
-          #if (DEBUG)
-          printf("Found undefined label: %s\n", *pArg2);
-          printf("Error Code: %d\n", 1);
-          #endif
-
-          exit(1);
-        }
-      }
-
-      if (string_equal(*pOpcode, "jsr")) {
-        if (!find_label(*pArg1)) {
-          if (pArg1[0][0] == 'x' ||
-              pArg1[0][0] == '#') {
-            #if (DEBUG)
-            printf("Found undefined label: %s\n", *pArg1);
-            printf("Error Code: %d\n", 4);
-            #endif
-
-            exit(4);
-          }
-
-          #if (DEBUG)
-          printf("Found undefined label: %s\n", *pArg1);
-          printf("Error Code: %d\n", 1);
-          #endif
-
-          exit(1);
-        }
-      }
-
       if (string_equal(*pOpcode, ".end")) {
         end = true;
       }
@@ -472,7 +404,6 @@ first_pass(char* infile) {
         }
 
         temp_PC = toNum(*pArg1);
-        printf("toNum: %d\n", toNum(*pArg1));
 
         /* PC value cannot be odd */
         if ((temp_PC % 2) == 1) {
@@ -497,6 +428,83 @@ first_pass(char* infile) {
         orig = true;
       } else {
         temp_PC += 2;
+      }
+
+      if (orig && !(end)) {
+        if (string_equal(*pOpcode, "br") ||
+          string_equal(*pOpcode, "brp") ||
+          string_equal(*pOpcode, "brz") ||
+          string_equal(*pOpcode, "brzp") ||
+          string_equal(*pOpcode, "brn") ||
+          string_equal(*pOpcode, "brnp") ||
+          string_equal(*pOpcode, "brnz") ||
+          string_equal(*pOpcode, "brnzp")) {
+          if (!find_label(*pArg1)) {
+            if (pArg1[0][0] == 'x' ||
+                pArg1[0][0] == '#') {
+              #if (DEBUG)
+              printf("Invalid syntax of br instructions: %s\n", *pArg1);
+              printf("Error Code: %d\n", 4);
+              #endif
+
+              exit(4);
+            }
+  //todo: what if we find lea #10 ____ no operand...
+  //todo: .fill xFFFF .fill x-FFFF
+            #if (DEBUG)
+            printf("Found undefined label: %s\n", *pArg1);
+            printf("Error Code: %d\n", 1);
+            #endif
+
+            exit(1);
+          }
+        }
+
+        if (string_equal(*pOpcode, "lea")) {
+          if (!find_label(*pArg2)) {
+            if (pArg2[0][0] == 'x' ||
+                pArg2[0][0] == '#') {
+              #if (DEBUG)
+              printf("Invalid syntax of lea instructions: %s\n", *pArg2);
+              printf("Error Code: %d\n", 4);
+              #endif
+
+              exit(4);
+            }
+
+            #if (DEBUG)
+            printf("Found undefined label: %s\n", *pArg2);
+            printf("Error Code: %d\n", 1);
+            #endif
+
+            exit(1);
+          }
+        }
+  // todo: what if we find jsr R1
+        if (string_equal(*pOpcode, "jsr")) {
+          if (!find_label(*pArg1)) {
+            if (pArg1[0][0] == 'x' ||
+                pArg1[0][0] == '#') {
+              #if (DEBUG)
+              printf("Invalid syntax of jsr instructions: %s\n", *pArg1);
+              printf("Error Code: %d\n", 4);
+              #endif
+
+              exit(4);
+            }
+
+            #if (DEBUG)
+            printf("Found undefined label: %s\n", *pArg1);
+            printf("Error Code: %d\n", 1);
+            #endif
+
+            exit(1);
+          }
+        }
+
+        if (*pLabel[0] != '\0') {
+          search_label(infile, *pLabel);
+        }
       }
     }
   } while(lRet != DONE);
@@ -527,18 +535,28 @@ second_pass(char* infile, char* outfile) {
 
   uint16_t PC = 0;
 
+  bool orig = false;
+  bool end = false;
   do {
     lRet = readAndParse(input, pLine, pLabel, pOpcode, pArg1, pArg2, pArg3, pArg4);
 
     if (lRet != DONE && lRet != EMPTY_LINE) {
       if (string_equal(*pOpcode, ".orig")) {
         PC = toNum(*pArg1);
+        orig = true;
       }
 
-      if (run(output, &PC, *pLabel, *pOpcode, *pArg1, *pArg2, *pArg3, *pArg4) == FINISH) {
+      if (string_equal(*pOpcode, ".end")) {
+        end = true;
         break;
       }
-      PC += 2;
+
+      if (orig && !(end)) {
+        if (run(output, &PC, *pLabel, *pOpcode, *pArg1, *pArg2, *pArg3, *pArg4) == FINISH) {
+          break;
+        }
+        PC += 2;
+      }
     }
   } while(lRet != DONE);
 
@@ -562,13 +580,21 @@ create_all_labels(char* infile) {
   uint32_t init_PC = 0;
   uint32_t temp_PC = 0;
 
+  bool orig = false;
+  bool end = false;
   do {
     lRet = readAndParse(input, pLine, pLabel, pOpcode, pArg1, pArg2, pArg3, pArg4);
 
     if (lRet != DONE && lRet != EMPTY_LINE) {
-      if (**(pLabel) != '\0') {
-        check_valid_label(*pLabel);
-        add_label(*pLabel, temp_PC);
+      if (string_equal(*pOpcode, ".end")) {
+        end = true;
+      }
+
+      if (orig && !(end)) {
+        if (**(pLabel) != '\0') {
+          check_valid_label(*pLabel);
+          add_label(*pLabel, temp_PC);
+        }
       }
 
       if (string_equal(*pOpcode, ".orig")) {
@@ -586,7 +612,6 @@ create_all_labels(char* infile) {
         #endif
 
         temp_PC = toNum(*pArg1);
-        printf("toNum: %d\n", toNum(*pArg1));
 
         /* PC value cannot be odd */
         if ((temp_PC % 2) == 1) {
@@ -608,6 +633,7 @@ create_all_labels(char* infile) {
           exit(3);
         }
 
+        orig = true;
         init_PC = temp_PC;
       } else {
         temp_PC += 2;
@@ -622,9 +648,8 @@ bool
 check_valid_label(char* label) {
   if ((label[0] == 'x') ||
       isdigit(label[0])) {
-    printf("Found invalid label: %s\n", label);
-
     #if (DEBUG)
+    printf("Found invalid label: %s\n", label);
     printf("Error Code: %d\n", 4);
     #endif
 
@@ -633,14 +658,25 @@ check_valid_label(char* label) {
   
   for (int i = 0; i < strlen(label); i++) {
     if (!isalnum(label[i])) {
-      printf("Found invalid label: %s\n", label);
-
       #if (DEBUG)
+      printf("Found invalid label: %s\n", label);
       printf("Error Code: %d\n", 4);
       #endif
 
       exit(4);
     }
+  }
+
+  if (string_equal(label, "getc") ||
+      string_equal(label, "in") ||
+      string_equal(label, "out") ||
+      string_equal(label, "puts")) {
+    #if (DEBUG)
+    printf("Trap instructions cannot be labels: %s\n", label);
+    printf("Error Code: %d\n", 4);
+    #endif
+
+    exit(4);
   }
 
   return true;
@@ -709,10 +745,10 @@ check_arguments(char* Opcode, char* argument) {
   if (*argument != '\0') {
     #if (DEBUG)
     printf("Argument (%s), passed to %s should be empty\n", argument, Opcode);
-    printf("Exit code: %d\n", 1);
+    printf("Exit code: %d\n", 4);
     #endif
 
-    exit(1);
+    exit(4);
   }
 }
 
@@ -755,7 +791,7 @@ CHECK_PCOFFSET9(int16_t PC_OFFSET9) {
     printf("Error Code: %d\n", 4);
     #endif
 
-    exit(3);
+    exit(4);
   } else if (PC_OFFSET9 < (-power(2,8))) {
     /* PC offset is smaller than the most negative value */
     #if (DEBUG)
@@ -763,7 +799,7 @@ CHECK_PCOFFSET9(int16_t PC_OFFSET9) {
     printf("Error Code: %d\n", 4);
     #endif
 
-    exit(3);
+    exit(4);
   }
 }
 
@@ -776,7 +812,7 @@ CHECK_PCOFFSET11(int16_t PC_OFFSET11) {
     printf("Error Code: %d\n", 4);
     #endif
 
-    exit(3);
+    exit(4);
   } else if (PC_OFFSET11 < (-power(2,10))) {
     /* PC offset is smaller than the most negative value */
     #if (DEBUG)
@@ -784,7 +820,7 @@ CHECK_PCOFFSET11(int16_t PC_OFFSET11) {
     printf("Error Code: %d\n", 4);
     #endif
 
-    exit(3);
+    exit(4);
   }
 }
 
@@ -823,25 +859,6 @@ CHECK_OFFSET6(int16_t OFFSET6) {
     /* OFFSET6 is smaller than the most negative value */
     #if (DEBUG)
     printf("OFFSET6 %d is too small!\n", OFFSET6);
-    printf("Error Code: %d\n", 3);
-    #endif
-
-    exit(3);
-  }
-}
-
-void
-CHECK_DR(int16_t DR) { // todo: check if i need this...
-  if (DR > (power(2, 5) - 1)) {
-    /* DR is greater than the max positive value */
-    #if (DEBUG)
-    printf("Error Code: %d\n", 3);
-    #endif
-
-    exit(3);
-  } else if (DR < (-power(2,5))) {
-    /* DR is smaller than the most negative value */
-    #if (DEBUG)
     printf("Error Code: %d\n", 3);
     #endif
 
@@ -892,8 +909,9 @@ CHECK_TRAPVECT8(int16_t TRAPVECT8) {
   }
 }
 
+//todo: check the int16_t, int32_t, etc
 void
-CHECK_FILL(int16_t FILL) {
+CHECK_FILL(int32_t FILL) {
   if (FILL > (power(2, 16) - 1)) {
     /* FILL is greater than the max positive value */
     #if (DEBUG)
@@ -905,7 +923,7 @@ CHECK_FILL(int16_t FILL) {
   } else if (FILL < (-power(2,15))) {
     /* FILL cannot be a negative value */
     #if (DEBUG)
-    printf("FILL %d is too big!\n", FILL);
+    printf("FILL %d is too small!\n", FILL);
     printf("Error Code: %d\n", 3);
     #endif
 
@@ -1524,6 +1542,16 @@ run(FILE* outfile, uint16_t* PC, char* Label, char* Opcode, char* arg1, char* ar
     check_arguments(Opcode, arg3);
     check_arguments(Opcode, arg4);
 
+//todo: cant get x1ff cause odd check for odds here
+    if (arg1[0] != 'x') {
+      #if (DEBUG)
+      printf("Invalid syntax for a TRAP instruction: '%c'\n", arg1[0]);
+      printf("Exit code: 4\n");
+      #endif
+      
+      exit(4); // todo: idk what this should be
+    }
+
     int16_t TRAPVECT_8 = toNum(arg1);
     CHECK_TRAPVECT8(TRAPVECT_8);
 
@@ -1626,7 +1654,8 @@ run(FILE* outfile, uint16_t* PC, char* Label, char* Opcode, char* arg1, char* ar
     check_arguments(Opcode, arg3);
     check_arguments(Opcode, arg4);
 
-    int16_t FILL = toNum(arg1);
+    int32_t FILL = toNum(arg1);
+    printf("FILL: %d\n", FILL);
     CHECK_FILL(FILL);
     instruction = FILL;
 
@@ -1635,6 +1664,15 @@ run(FILE* outfile, uint16_t* PC, char* Label, char* Opcode, char* arg1, char* ar
     #endif
 
     fprintf(outfile, "0x%04X\n", instruction);
+  }
+
+  else if(string_equal(Opcode, "nop")) {
+    check_arguments(Opcode, arg1);
+    check_arguments(Opcode, arg2);
+    check_arguments(Opcode, arg3);
+    check_arguments(Opcode, arg4);
+
+    fprintf(outfile, "0x%04X\n", 0x0000);
   }
 
   else if(string_equal(Opcode, ".end")) {
