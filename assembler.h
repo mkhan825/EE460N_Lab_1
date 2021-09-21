@@ -7,7 +7,8 @@
 /*                                                                                     */
 /***************************************************************************************/
 
-#define DEBUG 0
+#define DEBUG 1
+#define TEST 1
 
 enum
 {
@@ -105,8 +106,8 @@ enum opcode {
 
 #define SET_PCOFFSET9(pcoffset9) ((((uint16_t)pcoffset9) & 0x1ff) << 0)
 #define SET_PCOFFSET11(pcoffset11) ((((uint16_t)pcoffset11) & 0x7ff) << 0)
-#define SET_BOFFSET6(boffset6) ((((uint16_t)boffset6) & 0x2f) << 0)
-#define SET_OFFSET6(offset6) ((((uint16_t)offset6) & 0x2f) << 0)
+#define SET_BOFFSET6(boffset6) ((((uint16_t)boffset6) & 0x3f) << 0)
+#define SET_OFFSET6(offset6) ((((uint16_t)offset6) & 0x3f) << 0)
 
 #define SET_CC_N(cc_n) ((((uint16_t)cc_n) & 0x1) << 11)
 #define SET_CC_Z(cc_z) ((((uint16_t)cc_z) & 0x1) << 10)

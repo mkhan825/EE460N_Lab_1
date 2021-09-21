@@ -26,11 +26,11 @@ print("Generating input and output files\n")
 
 # First File
 
-test = "add"
+test = "add1"
 
 file1 = open("input/"+test+"-py.asm", "w")
 file1.write(".ORIG x3000\n")
-file1.write("ADD R1, R2, R3\n")
+file1.write("ADD R7, R7, #-16\n")
 file1.write(".END")
 file1.close()
 
@@ -38,7 +38,29 @@ os.system("../assemble input/"+test+"-py.asm output/"+test+"-c.obj")
 
 file2 = open("output/"+test+"-py.obj", "w")
 file2.write("0x3000\n")
-file2.write("0x1283\n")
+file2.write("0x1FF0\n")
+file2.close()
+
+output1 = open("output/"+test+"-c.obj", "r")
+output2 = open("output/"+test+"-py.obj", "r")
+
+files_equal(test, output1, output2)
+
+#
+
+test = "add2"
+
+file1 = open("input/"+test+"-py.asm", "w")
+file1.write(".ORIG x3000\n")
+file1.write("ADD R7, R7, #15\n")
+file1.write(".END")
+file1.close()
+
+os.system("../assemble input/"+test+"-py.asm output/"+test+"-c.obj")
+
+file2 = open("output/"+test+"-py.obj", "w")
+file2.write("0x3000\n")
+file2.write("0x1FEF\n")
 file2.close()
 
 output1 = open("output/"+test+"-c.obj", "r")
@@ -48,11 +70,11 @@ files_equal(test, output1, output2)
 
 # Second file
 
-test = "and"
+test = "and1"
 
 file1 = open("input/"+test+"-py.asm", "w")
 file1.write(".ORIG x3000\n")
-file1.write("AND R1, R2, R3\n")
+file1.write("AND R7, R7, #-16\n")
 file1.write(".END")
 file1.close()
 
@@ -60,7 +82,29 @@ os.system("../assemble input/"+test+"-py.asm output/"+test+"-c.obj")
 
 file2 = open("output/"+test+"-py.obj", "w")
 file2.write("0x3000\n")
-file2.write("0x5283\n")
+file2.write("0x5FF0\n")
+file2.close()
+
+output1 = open("output/"+test+"-c.obj", "r")
+output2 = open("output/"+test+"-py.obj", "r")
+
+files_equal(test, output1, output2)
+
+#
+
+test = "and2"
+
+file1 = open("input/"+test+"-py.asm", "w")
+file1.write(".ORIG x3000\n")
+file1.write("AND R7, R7, #15\n")
+file1.write(".END")
+file1.close()
+
+os.system("../assemble input/"+test+"-py.asm output/"+test+"-c.obj")
+
+file2 = open("output/"+test+"-py.obj", "w")
+file2.write("0x3000\n")
+file2.write("0x5FEF\n")
 file2.close()
 
 output1 = open("output/"+test+"-c.obj", "r")
@@ -334,11 +378,11 @@ files_equal(test, output1, output2)
 
 # 15 file
 
-test = "ldb"
+test = "ldb1"
 
 file1 = open("input/"+test+"-py.asm", "w")
 file1.write(".ORIG x3000\n")
-file1.write("LDB R1, R2, #7\n")
+file1.write("LDB R7, R7, #-32\n")
 file1.write(".END")
 file1.close()
 
@@ -346,7 +390,29 @@ os.system("../assemble input/"+test+"-py.asm output/"+test+"-c.obj")
 
 file2 = open("output/"+test+"-py.obj", "w")
 file2.write("0x3000\n")
-file2.write("0x2287\n")
+file2.write("0x2FE0\n")
+file2.close()
+
+output1 = open("output/"+test+"-c.obj", "r")
+output2 = open("output/"+test+"-py.obj", "r")
+
+files_equal(test, output1, output2)
+
+#
+
+test = "ldb2"
+
+file1 = open("input/"+test+"-py.asm", "w")
+file1.write(".ORIG x3000\n")
+file1.write("LDB R7, R7, #31\n")
+file1.write(".END")
+file1.close()
+
+os.system("../assemble input/"+test+"-py.asm output/"+test+"-c.obj")
+
+file2 = open("output/"+test+"-py.obj", "w")
+file2.write("0x3000\n")
+file2.write("0x2FDF\n")
 file2.close()
 
 output1 = open("output/"+test+"-c.obj", "r")
@@ -356,11 +422,11 @@ files_equal(test, output1, output2)
 
 # 16 file
 
-test = "ldw"
+test = "ldw1"
 
 file1 = open("input/"+test+"-py.asm", "w")
 file1.write(".ORIG x3000\n")
-file1.write("LDW R1, R2, #7\n")
+file1.write("LDW R7, R7, #-32\n")
 file1.write(".END")
 file1.close()
 
@@ -368,7 +434,29 @@ os.system("../assemble input/"+test+"-py.asm output/"+test+"-c.obj")
 
 file2 = open("output/"+test+"-py.obj", "w")
 file2.write("0x3000\n")
-file2.write("0x6287\n")
+file2.write("0x6FE0\n")
+file2.close()
+
+output1 = open("output/"+test+"-c.obj", "r")
+output2 = open("output/"+test+"-py.obj", "r")
+
+files_equal(test, output1, output2)
+
+#
+
+test = "ldw2"
+
+file1 = open("input/"+test+"-py.asm", "w")
+file1.write(".ORIG x3000\n")
+file1.write("LDW R7, R7, #31\n")
+file1.write(".END")
+file1.close()
+
+os.system("../assemble input/"+test+"-py.asm output/"+test+"-c.obj")
+
+file2 = open("output/"+test+"-py.obj", "w")
+file2.write("0x3000\n")
+file2.write("0x6FDF\n")
 file2.close()
 
 output1 = open("output/"+test+"-c.obj", "r")
@@ -404,7 +492,7 @@ test = "not"
 
 file1 = open("input/"+test+"-py.asm", "w")
 file1.write(".ORIG x3000\n")
-file1.write("NOT R1, R2\n")
+file1.write("NOT R7, R7\n")
 file1.write(".END")
 file1.close()
 
@@ -412,7 +500,7 @@ os.system("../assemble input/"+test+"-py.asm output/"+test+"-c.obj")
 
 file2 = open("output/"+test+"-py.obj", "w")
 file2.write("0x3000\n")
-file2.write("0x92BF\n")
+file2.write("0x9FFF\n")
 file2.close()
 
 output1 = open("output/"+test+"-c.obj", "r")
@@ -448,7 +536,7 @@ test = "lshf"
 
 file1 = open("input/"+test+"-py.asm", "w")
 file1.write(".ORIG x3000\n")
-file1.write("LSHF R1, R2, #7\n")
+file1.write("LSHF R7, R7, #15\n")
 file1.write(".END")
 file1.close()
 
@@ -456,7 +544,7 @@ os.system("../assemble input/"+test+"-py.asm output/"+test+"-c.obj")
 
 file2 = open("output/"+test+"-py.obj", "w")
 file2.write("0x3000\n")
-file2.write("0xD287\n")
+file2.write("0xDFCF\n")
 file2.close()
 
 output1 = open("output/"+test+"-c.obj", "r")
@@ -470,7 +558,7 @@ test = "rshfl"
 
 file1 = open("input/"+test+"-py.asm", "w")
 file1.write(".ORIG x3000\n")
-file1.write("RSHFL R1, R2, #7\n")
+file1.write("RSHFL R7, R7, #15\n")
 file1.write(".END")
 file1.close()
 
@@ -478,7 +566,7 @@ os.system("../assemble input/"+test+"-py.asm output/"+test+"-c.obj")
 
 file2 = open("output/"+test+"-py.obj", "w")
 file2.write("0x3000\n")
-file2.write("0xD297\n")
+file2.write("0xDFDF\n")
 file2.close()
 
 output1 = open("output/"+test+"-c.obj", "r")
@@ -492,7 +580,7 @@ test = "rshfa"
 
 file1 = open("input/"+test+"-py.asm", "w")
 file1.write(".ORIG x3000\n")
-file1.write("RSHFA R1, R2, #7\n")
+file1.write("RSHFA R7, R7, #15\n")
 file1.write(".END")
 file1.close()
 
@@ -500,7 +588,7 @@ os.system("../assemble input/"+test+"-py.asm output/"+test+"-c.obj")
 
 file2 = open("output/"+test+"-py.obj", "w")
 file2.write("0x3000\n")
-file2.write("0xD2B7\n")
+file2.write("0xDFFF\n")
 file2.close()
 
 output1 = open("output/"+test+"-c.obj", "r")
@@ -510,11 +598,11 @@ files_equal(test, output1, output2)
 
 # 21 file
 
-test = "stb"
+test = "stb1"
 
 file1 = open("input/"+test+"-py.asm", "w")
 file1.write(".ORIG x3000\n")
-file1.write("STB R1, R2, #7\n")
+file1.write("STB R7, R7, #-32\n")
 file1.write(".END")
 file1.close()
 
@@ -522,7 +610,29 @@ os.system("../assemble input/"+test+"-py.asm output/"+test+"-c.obj")
 
 file2 = open("output/"+test+"-py.obj", "w")
 file2.write("0x3000\n")
-file2.write("0x3287\n")
+file2.write("0x3FE0\n")
+file2.close()
+
+output1 = open("output/"+test+"-c.obj", "r")
+output2 = open("output/"+test+"-py.obj", "r")
+
+files_equal(test, output1, output2)
+
+#
+
+test = "stb2"
+
+file1 = open("input/"+test+"-py.asm", "w")
+file1.write(".ORIG x3000\n")
+file1.write("STB R7, R7, #31\n")
+file1.write(".END")
+file1.close()
+
+os.system("../assemble input/"+test+"-py.asm output/"+test+"-c.obj")
+
+file2 = open("output/"+test+"-py.obj", "w")
+file2.write("0x3000\n")
+file2.write("0x3FDF\n")
 file2.close()
 
 output1 = open("output/"+test+"-c.obj", "r")
@@ -536,7 +646,7 @@ test = "stw"
 
 file1 = open("input/"+test+"-py.asm", "w")
 file1.write(".ORIG x3000\n")
-file1.write("STW R1, R2, #7\n")
+file1.write("STW R7, R7, #-32\n")
 file1.write(".END")
 file1.close()
 
@@ -544,7 +654,29 @@ os.system("../assemble input/"+test+"-py.asm output/"+test+"-c.obj")
 
 file2 = open("output/"+test+"-py.obj", "w")
 file2.write("0x3000\n")
-file2.write("0x7287\n")
+file2.write("0x7FE0\n")
+file2.close()
+
+output1 = open("output/"+test+"-c.obj", "r")
+output2 = open("output/"+test+"-py.obj", "r")
+
+files_equal(test, output1, output2)
+
+#
+
+test = "stw"
+
+file1 = open("input/"+test+"-py.asm", "w")
+file1.write(".ORIG x3000\n")
+file1.write("STW R7, R7, #31\n")
+file1.write(".END")
+file1.close()
+
+os.system("../assemble input/"+test+"-py.asm output/"+test+"-c.obj")
+
+file2 = open("output/"+test+"-py.obj", "w")
+file2.write("0x3000\n")
+file2.write("0x7FDF\n")
 file2.close()
 
 output1 = open("output/"+test+"-c.obj", "r")
@@ -558,7 +690,7 @@ test = "trap"
 
 file1 = open("input/"+test+"-py.asm", "w")
 file1.write(".ORIG x3000\n")
-file1.write("TRAP x25\n")
+file1.write("TRAP xFF\n")
 file1.write(".END")
 file1.close()
 
@@ -566,7 +698,7 @@ os.system("../assemble input/"+test+"-py.asm output/"+test+"-c.obj")
 
 file2 = open("output/"+test+"-py.obj", "w")
 file2.write("0x3000\n")
-file2.write("0xF025\n")
+file2.write("0xF0FF\n")
 file2.close()
 
 output1 = open("output/"+test+"-c.obj", "r")
@@ -576,11 +708,11 @@ files_equal(test, output1, output2)
 
 # 22 file
 
-test = "xor"
+test = "xor1"
 
 file1 = open("input/"+test+"-py.asm", "w")
 file1.write(".ORIG x3000\n")
-file1.write("XOR R1, R2, R3\n")
+file1.write("XOR R7, R7, #-16\n")
 file1.write(".END")
 file1.close()
 
@@ -588,7 +720,29 @@ os.system("../assemble input/"+test+"-py.asm output/"+test+"-c.obj")
 
 file2 = open("output/"+test+"-py.obj", "w")
 file2.write("0x3000\n")
-file2.write("0x9283\n")
+file2.write("0x9FF0\n")
+file2.close()
+
+output1 = open("output/"+test+"-c.obj", "r")
+output2 = open("output/"+test+"-py.obj", "r")
+
+files_equal(test, output1, output2)
+
+#
+
+test = "xor2"
+
+file1 = open("input/"+test+"-py.asm", "w")
+file1.write(".ORIG x3000\n")
+file1.write("XOR R7, R7, #15\n")
+file1.write(".END")
+file1.close()
+
+os.system("../assemble input/"+test+"-py.asm output/"+test+"-c.obj")
+
+file2 = open("output/"+test+"-py.obj", "w")
+file2.write("0x3000\n")
+file2.write("0x9FEF\n")
 file2.close()
 
 output1 = open("output/"+test+"-c.obj", "r")

@@ -1,3 +1,3 @@
 .ORIG x3000
-RSHFA R1, R2, #7
+RSHFA R7, R7, #15
 .END

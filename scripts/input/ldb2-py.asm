@@ -1,3 +1,3 @@
 .ORIG x3000
-STB R1, R2, #7
+LDB R7, R7, #31
 .END

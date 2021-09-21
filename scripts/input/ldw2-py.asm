@@ -1,3 +1,3 @@
 .ORIG x3000
-XOR R1, R2, R3
+LDW R7, R7, #31
 .END

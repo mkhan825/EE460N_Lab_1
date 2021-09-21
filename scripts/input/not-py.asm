@@ -1,3 +1,3 @@
 .ORIG x3000
-NOT R1, R2
+NOT R7, R7
 .END

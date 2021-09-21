@@ -1,3 +1,3 @@
 .ORIG x3000
-ADD R1, R2, R3
+AND R7, R7, #15
 .END
