@@ -567,6 +567,7 @@ first_pass(char* infile) {
         /* PC value cannot be negative */
         if (pArg1[0][1] == '-') {
           #if (TEST || DEBUG)
+          printf("PC value cannot be negative!\n");
           printf("Error Code: %d\n", 3);
           #endif
 
@@ -728,12 +729,12 @@ first_pass(char* infile) {
               exit(2);
             }
 
-            #if (TEST || DEBUG)
-            printf("Found unused label: %s\n", *pLabel);
-            printf("Error Code: %d\n", 4);
-            #endif
+            // #if (TEST || DEBUG)
+            // printf("Found unused label: %s\n", *pLabel);
+            // printf("Error Code: %d\n", 4);
+            // #endif
 
-            exit(4);
+            // exit(4);
           }
         }
       }
@@ -786,7 +787,17 @@ second_pass(char* infile, char* outfile) {
         if (run(output, &PC, *pLabel, *pOpcode, *pArg1, *pArg2, *pArg3, *pArg4) == FINISH) {
           break;
         }
+        
         PC += 2;
+
+        if (PC == 0) {
+          #if (DEBUG)
+          printf("PC overflowed!\n");
+          printf("Exit code: 4\n");
+          #endif
+
+          exit(4);
+        }
       }
     }
   } while(lRet != DONE);
@@ -842,6 +853,7 @@ create_all_labels(char* infile) {
         /* PC value cannot be negative */
         if (pArg1[0][1] == '-') {
           #if (TEST || DEBUG)
+          printf("PC value cannot be negative!\n");
           printf("Error Code: %d\n", 3);
           #endif
 
@@ -929,14 +941,41 @@ check_valid_label(char* label) {
     exit(4);
   }
 
-  if (check_register(label) != -1) {
-    #if (TEST || DEBUG)
-    printf("Labels cannot be registers: %s\n", label);
-    printf("Error Code: %d\n", 4);
-    #endif
+  if (label[0] == 'r') {
+    bool all_digits = true;
+    for (int i = 1; i < strlen(label); i++) {
+      if (!isdigit(label[i])) {
+        all_digits = false;
+        break;
+      }
+    }
 
-    exit(4);
+    /* All of the characters after r were numbers */
+    if (all_digits) {
+      char temp[MAX_LABEL_LEN];
+      strcpy(temp, label);
+      temp[0] = '#';
+
+      /* If the number after r is less than 7, */
+      if (!(toNum(temp) > 7)) {
+        #if (DEBUG)
+        printf("You cannot have registers as labels!\n");
+        printf("Exit code: 4\n");
+        #endif
+
+        exit(4);
+      }
+    }
   }
+
+  // if (check_register(label) != -1) {
+  //   #if (TEST || DEBUG)
+  //   printf("Labels cannot be registers: %s\n", label);
+  //   printf("Error Code: %d\n", 4);
+  //   #endif
+
+  //   exit(4);
+  // }
 
   if (strlen(label) > 20) {
     #if (TEST || DEBUG)
@@ -1222,7 +1261,8 @@ run(FILE* outfile, uint16_t* PC, char* Label, char* Opcode, char* arg1, char* ar
       #if (DEBUG)
       printf("0x%4X\n", instruction);
       #endif
-
+      
+      // @Wenchi @95: "is probably fine"
       fprintf(outfile, "0x%04X\n", instruction);
     } else {
       #if (TEST || DEBUG)
@@ -1587,7 +1627,6 @@ run(FILE* outfile, uint16_t* PC, char* Label, char* Opcode, char* arg1, char* ar
     int reg_value2 = check_register(arg2);
 
     if (!((reg_value1 < 0) || (reg_value2 < 0))) {
-
       int16_t BOFFSET6 = toNum(arg3);
       CHECK_BOFFSET6(BOFFSET6);
       instruction = SET_OPCODE(LDB) | SET_DR(reg_value1) | SET_BASE_R(reg_value2) | SET_BOFFSET6(BOFFSET6);
@@ -1766,7 +1805,9 @@ run(FILE* outfile, uint16_t* PC, char* Label, char* Opcode, char* arg1, char* ar
     int reg_value2 = check_register(arg2);
 
     if (!((reg_value1 < 0) || (reg_value2 < 0))) {
-      instruction = SET_OPCODE(STB) | SET_ST_SR(reg_value1) | SET_BASE_R(reg_value2)| SET_BOFFSET6(toNum(arg3));
+      int16_t BOFFSET6 = toNum(arg3);
+      CHECK_BOFFSET6(BOFFSET6);
+      instruction = SET_OPCODE(STB) | SET_ST_SR(reg_value1) | SET_BASE_R(reg_value2)| SET_BOFFSET6(BOFFSET6);
 
       #if (DEBUG)
       printf("0x%4X\n", instruction);
@@ -1790,7 +1831,9 @@ run(FILE* outfile, uint16_t* PC, char* Label, char* Opcode, char* arg1, char* ar
     int reg_value2 = check_register(arg2);
 
     if (!((reg_value1 < 0) || (reg_value2 < 0))) {
-      instruction = SET_OPCODE(STW) | SET_ST_SR(reg_value1) | SET_BASE_R(reg_value2) | SET_OFFSET6(toNum(arg3));
+      int16_t OFFSET6 = toNum(arg3);
+      CHECK_OFFSET6(OFFSET6);
+      instruction = SET_OPCODE(STW) | SET_ST_SR(reg_value1) | SET_BASE_R(reg_value2)| SET_OFFSET6(OFFSET6);
 
       #if (DEBUG)
       printf("0x%4X\n", instruction);

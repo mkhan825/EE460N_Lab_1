@@ -1,6 +1,6 @@
 import os
 
-file1 = open("../tests/label_far_top.asm", "w")
+file1 = open("../tests/lea_label_far_top.asm", "w")
 
 file1.write(".ORIG x1000\n")
 file1.write("A ADD R1, R1, R1\n")
@@ -11,5 +11,4 @@ file1.write(".END")
 file1.close()
 
 os.system("gcc -std=c99 -o ../assemble ../assembler.c")
-os.system("../assemble ../tests/label_far_top.asm ./output/label_far_top.obj")
-print("Expected Error Code: 4")
+os.system("../assemble ../tests/lea_label_far_top.asm ./output/lea_label_far_top.obj")

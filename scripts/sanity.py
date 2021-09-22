@@ -642,7 +642,7 @@ files_equal(test, output1, output2)
 
 # 21 file
 
-test = "stw"
+test = "stw1"
 
 file1 = open("input/"+test+"-py.asm", "w")
 file1.write(".ORIG x3000\n")
@@ -664,7 +664,7 @@ files_equal(test, output1, output2)
 
 #
 
-test = "stw"
+test = "stw2"
 
 file1 = open("input/"+test+"-py.asm", "w")
 file1.write(".ORIG x3000\n")

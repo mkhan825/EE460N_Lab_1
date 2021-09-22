@@ -1,0 +1,3 @@
+.ORIG x3000
+STW R7, R7, #31
+.END
